@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Search, Plus, GraduationCap, Building } from 'lucide-react';
+import Link from 'next/link';
+import { Search, Plus, GraduationCap, Building, LogIn } from 'lucide-react';
 import { Faculty, Department } from '@/types/dna';
 
 interface HeaderProps {
@@ -82,6 +83,15 @@ export const Header: React.FC<HeaderProps> = ({
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span className="hidden sm:inline">เพิ่ม DNA โครงงาน</span>
           </button>
+
+          {/* Login Button */}
+          <Link
+            href="/login"
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition-colors shrink-0 border border-slate-200"
+          >
+            <LogIn className="w-3.5 h-3.5 text-slate-700" />
+            <span className="hidden sm:inline">เข้าสู่ระบบ</span>
+          </Link>
         </div>
       </div>
 
