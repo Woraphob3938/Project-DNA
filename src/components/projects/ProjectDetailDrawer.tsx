@@ -38,7 +38,16 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
   onToggleFavorite
 }) => {
   return (
-    <div className="fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col border-l border-slate-200 transition-colors">
+    <>
+      {/* Backdrop for outside click */}
+      <div 
+        onClick={onClose}
+        className="fixed inset-0 bg-slate-950/20 backdrop-blur-[1px] z-40 animate-in fade-in duration-150"
+        aria-hidden="true"
+      />
+
+      {/* Slide-over Drawer Panel */}
+      <div className="fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col border-l border-slate-200 animate-in slide-in-from-right duration-200">
       
       {/* Top Header */}
       <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
@@ -299,5 +308,6 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
       </div>
 
     </div>
+    </>
   );
 };
