@@ -40,14 +40,9 @@ export const Header: React.FC<HeaderProps> = ({
         
         {/* Title & Campus Info */}
         <div>
-          <div className="flex items-center space-x-2.5">
-            <h1 className="font-display text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
-              DNA : คลังองค์ความรู้ & ต่อยอดโครงงานนิสิต
-            </h1>
-            <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300/80">
-              มก.ฉกส. {totalProjects} โครงงาน
-            </span>
-          </div>
+          <h1 className="font-display text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
+            DNA : คลังองค์ความรู้ & ต่อยอดโครงงานนิสิต
+          </h1>
           <p className="text-xs text-slate-500 mt-1 font-sans">
             มหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตเฉลิมพระเกียรติ จังหวัดสกลนคร (KU CSC)
           </p>
