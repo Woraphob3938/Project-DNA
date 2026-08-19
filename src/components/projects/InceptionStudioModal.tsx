@@ -11,7 +11,6 @@ import {
   Layers, 
   CheckCircle2, 
   ChevronLeft,
-  Flame,
   Rocket
 } from 'lucide-react';
 import { Project, ExtensionGap, Challenge } from '@/types/dna';
@@ -37,7 +36,6 @@ export const InceptionStudioModal: React.FC<InceptionStudioModalProps> = ({
   const [newTitleTh, setNewTitleTh] = useState('');
   const [newTitleEn, setNewTitleEn] = useState('');
   const [teamMembers, setTeamMembers] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
 
   if (!isOpen || !parentProject) return null;
 
@@ -55,8 +53,7 @@ export const InceptionStudioModal: React.FC<InceptionStudioModalProps> = ({
       academic_year: 2568,
       status: 'in_progress',
       department_id: parentProject.department_id,
-      sdg_ids: parentProject.sdg_ids,
-      abstract_th: `โครงการต่อยอดจาก ${parentProject.title_th} มุ่งเน้นการแก้ปัญหา ${selectedGap?.gap_title || 'การขยายผล'} เพื่อตอบโจทย์ ${selectedChallenge?.title || 'การพัฒนาที่ยั่งยืน'}`,
+      abstract_th: `โครงการต่อยอดจาก ${parentProject.title_th} มุ่งเน้นการแก้ปัญหา ${selectedGap?.gap_title || 'การขยายผล'} เพื่อตอบโจทย์ ${selectedChallenge?.title || 'ความต้องการในพื้นที่'}`,
       dna_card: {
         id: 'dna-new-' + Date.now(),
         project_id: '',
@@ -290,15 +287,15 @@ export const InceptionStudioModal: React.FC<InceptionStudioModalProps> = ({
                     type="text"
                     value={teamMembers}
                     onChange={(e) => setTeamMembers(e.target.value)}
-                    placeholder="เช่น: นายสมชาย ยอดเยี่ยม (674020xxxx), น.ส.สมศรี มีสุข (674020xxxx)"
+                    placeholder="เช่น: นิสิตทีมต่อยอด (6740xxxxxx)"
                     className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
                   />
                 </div>
 
                 <div className="p-3 bg-white rounded-xl border border-slate-200 text-xs space-y-1">
                   <div><strong>สืบทอดสายวิวัฒนาการจาก:</strong> {parentProject.title_th}</div>
-                  <div><strong>โจทย์ที่เลือก:</strong> {selectedChallenge?.title || 'โจทย์พัฒนาที่ยั่งยืนทั่วไป'}</div>
-                  <div><strong>SDGs ที่เชื่อมโยง:</strong> {parentProject.sdg_ids.map(id => `SDG ${id}`).join(', ')}</div>
+                  <div><strong>สาขาวิชา:</strong> {parentProject.department?.name_th}</div>
+                  <div><strong>โจทย์ที่เลือก:</strong> {selectedChallenge?.title || 'โจทย์ความต้องการทั่วไป'}</div>
                 </div>
               </div>
             </div>

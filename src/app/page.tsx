@@ -9,12 +9,11 @@ import { QuickResourceModal } from '@/components/projects/QuickResourceModal';
 import { InceptionStudioModal } from '@/components/projects/InceptionStudioModal';
 import { LineageVisualizer } from '@/components/lineage/LineageVisualizer';
 import { ChallengesHub } from '@/components/challenges/ChallengesHub';
-import { SdgAnalytics } from '@/components/analytics/SdgAnalytics';
+import { ProjectAnalytics } from '@/components/analytics/ProjectAnalytics';
 import { CreateDnaCardModal } from '@/components/ingestion/CreateDnaCardModal';
-import { AboutModal } from '@/components/modals/AboutModal';
 import { dnaService } from '@/lib/dnaService';
-import { Project, SdgGoal, Department, Challenge, ProjectLineageEdge, ActiveTab } from '@/types/dna';
-import { Sparkles, Layers, Bookmark, Search, RefreshCw } from 'lucide-react';
+import { Project, Faculty, Department, Challenge, ProjectLineageEdge, ActiveTab } from '@/types/dna';
+import { Search, RefreshCw } from 'lucide-react';
 
 export default function Home() {
   // Navigation & View State
@@ -22,7 +21,7 @@ export default function Home() {
   
   // Data State
   const [projects, setProjects] = useState<Project[]>([]);
-  const [sdgs, setSdgs] = useState<SdgGoal[]>([]);
+  const [faculties, setFaculties] = useState<Faculty[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [lineages, setLineages] = useState<ProjectLineageEdge[]>([]);
@@ -30,7 +29,7 @@ export default function Home() {
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSdg, setSelectedSdg] = useState<number | null>(null);
+  const [selectedFaculty, setSelectedFaculty] = useState<string | null>(null);
   const [selectedDept, setSelectedDept] = useState<string | null>(null);
 
   // Selection & Modals
@@ -38,7 +37,6 @@ export default function Home() {
   const [quickModalProject, setQuickModalProject] = useState<Project | null>(null);
   const [inceptionProject, setInceptionProject] = useState<Project | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
 
   // Favorites
   const [favorites, setFavorites] = useState<string[]>(['proj-2']);
@@ -48,15 +46,15 @@ export default function Home() {
     async function loadData() {
       setIsLoading(true);
       try {
-        const [p, s, d, c, l] = await Promise.all([
+        const [p, f, d, c, l] = await Promise.all([
           dnaService.getProjects(),
-          dnaService.getSdgs(),
+          dnaService.getFaculties(),
           dnaService.getDepartments(),
           dnaService.getChallenges(),
           dnaService.getLineages()
         ]);
         setProjects(p);
-        setSdgs(s);
+        setFaculties(f);
         setDepartments(d);
         setChallenges(c);
         setLineages(l);
@@ -82,9 +80,9 @@ export default function Home() {
       result = result.filter(p => favorites.includes(p.id));
     }
 
-    // SDG Filter
-    if (selectedSdg !== null) {
-      result = result.filter(p => p.sdg_ids.includes(selectedSdg));
+    // Faculty Filter
+    if (selectedFaculty !== null) {
+      result = result.filter(p => p.department?.faculty_id === selectedFaculty);
     }
 
     // Department Filter
@@ -114,7 +112,7 @@ export default function Home() {
     }
 
     return result;
-  }, [projects, activeTab, favorites, selectedSdg, selectedDept, searchQuery]);
+  }, [projects, activeTab, favorites, selectedFaculty, selectedDept, searchQuery]);
 
   // Toggle Favorite
   const handleToggleFavorite = (projectId: string, e?: React.MouseEvent) => {
@@ -135,12 +133,11 @@ export default function Home() {
   return (
     <div className="flex min-h-screen bg-[#F4F5F7] text-slate-900 font-sans">
       
-      {/* 1. Left Yellow Sidebar (Wireframe faithful) */}
+      {/* 1. Left Yellow Sidebar (Sticky & Floating) */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenCreateModal={() => setIsCreateModalOpen(true)}
-        onOpenAboutModal={() => setIsAboutModalOpen(true)}
         favoriteCount={favorites.length}
       />
 
@@ -151,9 +148,9 @@ export default function Home() {
         <Header
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
-          sdgs={sdgs}
-          selectedSdg={selectedSdg}
-          setSelectedSdg={setSelectedSdg}
+          faculties={faculties}
+          selectedFaculty={selectedFaculty}
+          setSelectedFaculty={setSelectedFaculty}
           departments={departments}
           selectedDept={selectedDept}
           setSelectedDept={setSelectedDept}
@@ -172,7 +169,7 @@ export default function Home() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-black text-slate-900 flex items-center space-x-2">
-                    <span>{activeTab === 'favorites' ? '⭐ โครงงานที่บันทึกไว้' : '📦 คลัง DNA โครงงานนิสิต'}</span>
+                    <span>{activeTab === 'favorites' ? '⭐ โครงงานที่บันทึกไว้' : '📦 คลัง DNA โครงงานนิสิต มก.ฉกส.'}</span>
                     <span className="text-xs font-bold text-slate-400 bg-white px-2.5 py-1 rounded-full border border-slate-200 shadow-2xs">
                       {filteredProjects.length} รายการ
                     </span>
@@ -183,10 +180,10 @@ export default function Home() {
                 </div>
 
                 {/* Clear Filter Button */}
-                {(selectedSdg !== null || selectedDept !== null || searchQuery) && (
+                {(selectedFaculty !== null || selectedDept !== null || searchQuery) && (
                   <button
                     onClick={() => {
-                      setSelectedSdg(null);
+                      setSelectedFaculty(null);
                       setSelectedDept(null);
                       setSearchQuery('');
                     }}
@@ -223,7 +220,7 @@ export default function Home() {
                   </p>
                   <button
                     onClick={() => {
-                      setSelectedSdg(null);
+                      setSelectedFaculty(null);
                       setSelectedDept(null);
                       setSearchQuery('');
                     }}
@@ -249,7 +246,7 @@ export default function Home() {
             />
           )}
 
-          {/* TAB 3: Real-World Challenges & SDG Matching */}
+          {/* TAB 3: Real-World Challenges & Matching */}
           {activeTab === 'challenges' && (
             <ChallengesHub
               challenges={challenges}
@@ -261,11 +258,11 @@ export default function Home() {
             />
           )}
 
-          {/* TAB 4: SDG Impact Analytics */}
+          {/* TAB 4: Project & Knowledge Analytics */}
           {activeTab === 'analytics' && (
-            <SdgAnalytics
+            <ProjectAnalytics
               projects={projects}
-              sdgs={sdgs}
+              faculties={faculties}
               challenges={challenges}
             />
           )}
@@ -308,14 +305,8 @@ export default function Home() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         departments={departments}
-        sdgs={sdgs}
+        faculties={faculties}
         onSuccessCreate={handleSuccessCreate}
-      />
-
-      {/* About Project & Team Ambatukam Modal */}
-      <AboutModal
-        isOpen={isAboutModalOpen}
-        onClose={() => setIsAboutModalOpen(false)}
       />
 
     </div>

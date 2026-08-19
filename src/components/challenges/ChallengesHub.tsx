@@ -9,9 +9,7 @@ import {
   MapPin, 
   Sparkles, 
   ArrowUpRight, 
-  CheckCircle2, 
-  AlertCircle,
-  Plus
+  AlertCircle
 } from 'lucide-react';
 import { Challenge, Project } from '@/types/dna';
 
@@ -43,13 +41,13 @@ export const ChallengesHub: React.FC<ChallengesHubProps> = ({
         <div className="relative z-10 max-w-2xl">
           <div className="flex items-center space-x-2 text-slate-900 text-xs font-black uppercase tracking-wider mb-2">
             <Target className="w-4 h-4" />
-            <span>REAL-WORLD CHALLENGES & SDG MATCHING HUB</span>
+            <span>REAL-WORLD CHALLENGES & MATCHING HUB</span>
           </div>
           <h2 className="text-2xl md:text-3xl font-black tracking-tight">
             คลังโจทย์จริงจากชุมชน มหาวิทยาลัย และอุตสาหกรรม
           </h2>
           <p className="text-xs md:text-sm text-slate-900/90 mt-2 font-medium leading-relaxed">
-            เชื่อมโยงองค์ความรู้และเทคโนโลยีของนิสิตเข้ากับความต้องการที่แท้จริง พร้อมขับเคลื่อนเป้าหมายการพัฒนาที่ยั่งยืน (SDGs 4, 9, 11, 12, 17)
+            เชื่อมโยงองค์ความรู้และเทคโนโลยีของนิสิต มก.ฉกส. เข้ากับความต้องการที่แท้จริงของภาคธุรกิจ ชุมชน และมหาวิทยาลัย
           </p>
         </div>
       </div>

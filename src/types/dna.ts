@@ -1,20 +1,20 @@
 // Types and Domain Models for Project DNA
 
-export interface SdgGoal {
-  id: number;
-  code: string; // e.g. "SDG 4"
+export interface Faculty {
+  id: string;
   name_th: string;
   name_en: string;
+  short_name: string;
   color_hex: string;
-  icon_name: string;
 }
 
 export interface Department {
   id: string;
-  code: string; // "CS", "CPE", "ME", "EE", "CE"
+  faculty_id: string;
+  code: string; // "CPE", "CS", "IT", "ME", "EE", "CE", "IE", "AC", "MGT", "MKT", "FIN", "ACC", "HTM", "EBC", "PA", "AS", "PS", "FISH", "FST", "PH", "EH", "OHS"
   name_th: string;
   name_en: string;
-  faculty: string;
+  faculty?: Faculty;
 }
 
 export interface StudentAuthor {
@@ -27,7 +27,7 @@ export interface StudentAuthor {
 export interface ReusableAsset {
   id: string;
   project_id: string;
-  asset_type: 'code_repo' | 'dataset' | 'cad_blueprint' | 'circuit_schematic' | 'api' | 'trained_model';
+  asset_type: 'code_repo' | 'dataset' | 'cad_blueprint' | 'circuit_schematic' | 'api' | 'trained_model' | 'document';
   title: string;
   description: string;
   resource_url: string;
@@ -98,8 +98,6 @@ export interface Project {
   rating_score: number;
   view_count: number;
   fork_count: number;
-  sdg_ids: number[];
-  sdgs?: SdgGoal[];
   dna_card?: DnaCardData;
   assets?: ReusableAsset[];
   gaps?: ExtensionGap[];

@@ -3,7 +3,6 @@
 import React from 'react';
 import { 
   GitFork, 
-  Eye, 
   Star, 
   Bookmark, 
   FileCode, 
@@ -60,14 +59,14 @@ export const DnaCard: React.FC<DnaCardProps> = ({
             <Layers className="w-12 h-12 opacity-50" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-transparent to-black/30" />
 
-        {/* Department & Year Badges */}
-        <div className="absolute top-3 left-3 flex items-center space-x-1.5">
-          <span className="px-2.5 py-1 bg-slate-900/85 backdrop-blur-md text-amber-400 text-xs font-bold rounded-lg shadow-sm border border-slate-700/50">
-            {project.department?.code || 'KUSE'}
+        {/* Department & Faculty Badges */}
+        <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5">
+          <span className="px-2.5 py-1 bg-slate-900/90 backdrop-blur-md text-amber-400 text-xs font-bold rounded-lg shadow-sm border border-slate-700/50">
+            {project.department?.code || 'KU CSC'}
           </span>
-          <span className="px-2 py-1 bg-white/80 backdrop-blur-md text-slate-800 text-[11px] font-semibold rounded-lg shadow-sm">
+          <span className="px-2 py-1 bg-white/85 backdrop-blur-md text-slate-800 text-[11px] font-bold rounded-lg shadow-sm">
             ปี {project.academic_year}
           </span>
         </div>
@@ -85,17 +84,11 @@ export const DnaCard: React.FC<DnaCardProps> = ({
           <Bookmark className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
         </button>
 
-        {/* SDGs Tag Badges on Banner */}
-        <div className="absolute bottom-2.5 left-3 flex flex-wrap gap-1">
-          {project.sdgs?.map((sdg) => (
-            <span
-              key={sdg.id}
-              style={{ backgroundColor: sdg.color_hex }}
-              className="text-white text-[10px] font-black px-2 py-0.5 rounded shadow-xs"
-            >
-              {sdg.code}
-            </span>
-          ))}
+        {/* Faculty Name on Banner Bottom */}
+        <div className="absolute bottom-2.5 left-3">
+          <span className="text-[11px] font-bold text-white bg-black/40 backdrop-blur-xs px-2.5 py-0.5 rounded-md border border-white/20">
+            {project.department?.faculty?.name_th || 'มก.ฉกส.'}
+          </span>
         </div>
 
         {/* Lineage Indicator */}

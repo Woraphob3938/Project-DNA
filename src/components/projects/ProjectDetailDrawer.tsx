@@ -6,18 +6,14 @@ import {
   Sparkles, 
   Download, 
   GitFork, 
-  ExternalLink, 
-  Github, 
   Cpu, 
   Database, 
   FileCode, 
-  Users, 
   Award, 
   AlertCircle, 
-  ChevronRight,
-  Share2,
   CheckCircle2,
-  Bookmark
+  Bookmark,
+  GraduationCap
 } from 'lucide-react';
 import { Project } from '@/types/dna';
 
@@ -51,8 +47,8 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
           <span className="px-2.5 py-1 bg-amber-500 text-slate-950 text-xs font-extrabold rounded-lg">
             DNA CARD
           </span>
-          <span className="text-xs text-slate-500 font-medium">
-            {project.department?.code} • ปี {project.academic_year}
+          <span className="text-xs text-slate-600 font-bold">
+            {project.department?.name_th} ({project.department?.code}) • ปี {project.academic_year}
           </span>
         </div>
 
@@ -93,25 +89,17 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
             </div>
           )}
 
+          <div className="flex items-center space-x-1.5 text-xs text-amber-700 font-bold mb-1">
+            <GraduationCap className="w-4 h-4" />
+            <span>{project.department?.faculty?.name_th || 'มหาวิทยาลัยเกษตรศาสตร์ สกลนคร'}</span>
+          </div>
+
           <h2 className="text-xl font-black text-slate-900 leading-snug">
             {project.title_th}
           </h2>
           <p className="text-xs font-medium text-slate-400 mt-1">
             {project.title_en}
           </p>
-
-          {/* SDG Badges */}
-          <div className="flex flex-wrap gap-1.5 mt-3">
-            {project.sdgs?.map((sdg) => (
-              <span
-                key={sdg.id}
-                style={{ backgroundColor: sdg.color_hex }}
-                className="text-white text-xs font-bold px-2.5 py-1 rounded-md shadow-xs"
-              >
-                {sdg.code}: {sdg.name_th}
-              </span>
-            ))}
-          </div>
         </div>
 
         {/* Problem Statement Card */}
@@ -265,7 +253,7 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
         {/* Authors & Advisor */}
         <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
           <div>
-            <span className="font-bold text-slate-700">อาจารย์ที่ปรึกษา:</span> {project.dna_card?.advisor_name || 'คณะวิทยาศาสตร์และวิศวกรรมศาสตร์'}
+            <span className="font-bold text-slate-700">อาจารย์ที่ปรึกษา:</span> {project.dna_card?.advisor_name || project.department?.faculty?.name_th}
           </div>
           {project.dna_card?.student_authors && project.dna_card.student_authors.length > 0 && (
             <div className="text-right">

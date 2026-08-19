@@ -10,7 +10,6 @@ export async function extractDnaWithGemini(rawText: string): Promise<{
   title_en: string;
   department_code: string;
   academic_year: number;
-  sdg_ids: number[];
   dna_card: Partial<DnaCardData>;
   gaps: ExtensionGap[];
 }> {
@@ -20,8 +19,14 @@ export async function extractDnaWithGemini(rawText: string): Promise<{
       const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
       const prompt = `
-คุณเป็นผู้เชี่ยวชาญด้านการวิเคราะห์โครงงานนิสิต (Senior Projects) สำหรับคณะวิทยาศาสตร์และวิศวกรรมศาสตร์ มหาวิทยาลัยเกษตรศาสตร์
+คุณเป็นผู้เชี่ยวชาญด้านการวิเคราะห์โครงงานนิสิต (Senior Projects) สำหรับมหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตเฉลิมพระเกียรติ จังหวัดสกลนคร (มก.ฉกส.)
 วิเคราะห์ข้อความ/บทคัดย่อโครงงานต่อไปนี้ และสกัดข้อมูลออกมาเป็น JSON ตามโครงสร้างที่กำหนดเท่านั้น (ห้ามใส่ markdown อื่นนอกเหนือจาก json):
+
+สาขาวิชาที่รองรับใน มก.ฉกส.:
+- คณะวิทยาศาสตร์และวิศวกรรมศาสตร์: CPE, CS, IT, ME, EE, CE, IE, AC
+- คณะศิลปศาสตร์และวิทยาการจัดการ: MGT, MKT, FIN, ACC, HTM, EBC, PA
+- คณะทรัพยากรธรรมชาติและอุตสาหกรรมเกษตร: AS, PS, FISH, FST, ARM
+- คณะสาธารณสุขศาสตร์: PH, EH, OHS
 
 ข้อความโครงงาน:
 """
@@ -32,9 +37,8 @@ ${rawText}
 {
   "title_th": "ชื่อโครงงานภาษาไทย",
   "title_en": "Project Title in English",
-  "department_code": "CS หรือ CPE หรือ ME หรือ EE หรือ CE",
+  "department_code": "รหัสสาขาวิชา เช่น CPE, CS, ME, EE, AS, PH, MKT",
   "academic_year": 2568,
-  "sdg_ids": [4, 9, 11, 12, 17],
   "dna_card": {
     "problem_statement": "ปัญหาหลักที่โครงงานต้องการแก้ไข",
     "target_users": ["กลุ่มผู้ใช้ 1", "กลุ่มผู้ใช้ 2"],
@@ -125,6 +129,7 @@ function generateSmartMockExtraction(rawText: string) {
   const isIndigo = rawText.includes('คราม') || rawText.includes('indigo') || rawText.includes('ผ้า');
   const isWater = rawText.includes('น้ำ') || rawText.includes('water') || rawText.includes('เขื่อน') || rawText.includes('แล้ง');
   const isCattle = rawText.includes('โค') || rawText.includes('วัว') || rawText.includes('ปศุสัตว์');
+  const isHealth = rawText.includes('สุขภาพ') || rawText.includes('ล้ม') || rawText.includes('แพทย์') || rawText.includes('รพ.');
 
   if (isIndigo) {
     return {
@@ -132,7 +137,6 @@ function generateSmartMockExtraction(rawText: string) {
       title_en: 'Intelligent Natural Indigo Quality Analysis and Control Platform',
       department_code: 'CS',
       academic_year: 2568,
-      sdg_ids: [9, 11, 12],
       dna_card: {
         problem_statement: 'การควบคุมมาตรฐานสีครามและกระบวนการผลิตยังขาดระบบอัตโนมัติและการตรวจสอบแบบเรียลไทม์',
         target_users: ['กลุ่มวิสาหกิจชุมชนผ้าย้อมครามสกลนคร', 'ผู้ประกอบการ OTOP', 'ผู้ส่งออกสิ่งทอ'],
@@ -141,7 +145,7 @@ function generateSmartMockExtraction(rawText: string) {
         limitations: ['ต้องติดตั้งในพื้นที่ที่มีแสงสว่างควบคุม', 'ยังไม่รองรับการทำงานในสภาพแสงแดดจัดกลางแจ้ง'],
         hardware_specs: 'กล้องอุตสาหกรรม 12MP, บอร์ด ESP32, เซ็นเซอร์ pH/Temp',
         dataset_description: 'ภาพถ่ายเฉดสีคราม 5,000 ภาพ พร้อมค่าพารามิเตอร์เคมี',
-        advisor_name: 'ผศ.ดร. ภูมิปัญญา ดิจิทัล'
+        advisor_name: 'อาจารย์ที่ปรึกษาประจำสาขา'
       },
       gaps: [
         {
@@ -157,12 +161,39 @@ function generateSmartMockExtraction(rawText: string) {
     };
   }
 
+  if (isCattle) {
+    return {
+      title_th: 'ระบบติดตามสุขภาพและการเติบโตโคขุนโพนยางคำอัจฉริยะ',
+      title_en: 'Smart Pon Yang Kham Cattle Health and Growth Monitoring',
+      department_code: 'AS',
+      academic_year: 2568,
+      dna_card: {
+        problem_statement: 'การติดตามสุขภาพและคำนวณน้ำหนักตัวโคขุนยังใช้วิธีการชั่งแบบสัมผัสทำให้สัตว์เครียด',
+        target_users: ['สหกรณ์โคขุนโพนยางคำ', 'เกษตรกรผู้เลี้ยงโคขุนสกลนคร'],
+        tech_stack: ['Python', '3D Computer Vision', 'Edge AI', 'Cloud Database'],
+        key_outcomes: ['ประเมินน้ำหนักแม่นยำ 94%', 'ลดความเครียดของสัตว์ 100%'],
+        limitations: ['ต้องการตำแหน่งการติดตั้งกล้องที่เหมาะสม'],
+        advisor_name: 'อาจารย์ที่ปรึกษาประจำสาขาสัตวศาสตร์'
+      },
+      gaps: [
+        {
+          id: 'g-mock-cattle',
+          project_id: '',
+          gap_title: 'พัฒนาระบบตรวจจับลวดลายจมูกวัว (Nose Print) เพื่อระบุตัวตน',
+          gap_description: 'ใช้ AI จำแนกลายจมูกวัวแทนการติดเบอร์หูเพื่อสร้าง Smart Cow Passport',
+          difficulty_level: 'Hard' as const,
+          recommended_tech: ['Siamese Network', 'Deep Learning'],
+          potential_impact: 'ยกระดับมาตรฐานการตรวจสอบย้อนกลับเนื้อโคขุนส่งออก'
+        }
+      ]
+    };
+  }
+
   return {
-    title_th: 'นวัตกรรมระบบอัจฉริยะเพื่อการพัฒนาที่ยั่งยืน มก.ฉกส.',
-    title_en: 'Intelligent Sustainable Innovation Platform KUSE',
+    title_th: 'นวัตกรรมระบบอัจฉริยะเพื่อการพัฒนา มก.ฉกส.',
+    title_en: 'Intelligent Innovation Platform KUSE',
     department_code: 'CPE',
     academic_year: 2568,
-    sdg_ids: [9, 11],
     dna_card: {
       problem_statement: 'ปัญหาการจัดการข้อมูลและทรัพยากรที่ขาดประสิทธิภาพในระดับพื้นที่',
       target_users: ['นิสิตและคณาจารย์ มก.ฉกส.', 'หน่วยงานท้องถิ่น', 'ประชาชนในชุมชน'],
@@ -170,8 +201,8 @@ function generateSmartMockExtraction(rawText: string) {
       key_outcomes: ['ประหยัดเวลาการทำงานลง 60%', 'สร้างฐานข้อมูลดิจิทัลที่เข้าถึงได้ 24 ชม.'],
       limitations: ['ยังต้องการการทดสอบภาคสนามกับกลุ่มผู้ใช้จริงเพิ่มเติม'],
       hardware_specs: 'เซ็นเซอร์ IoT และ Edge Computing Unit',
-      dataset_description: 'ข้อมูลสถิติการใช้งานและตัวชี้วัดความยั่งยืน',
-      advisor_name: 'คณาจารย์ที่ปรึกษาประจำสาขา'
+      dataset_description: 'ข้อมูลสถิติการใช้งานและตัวชี้วัด',
+      advisor_name: 'อาจารย์ที่ปรึกษาประจำสาขา'
     },
     gaps: [
       {

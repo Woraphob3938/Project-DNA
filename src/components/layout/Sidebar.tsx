@@ -8,7 +8,6 @@ import {
   BarChart3, 
   Bookmark, 
   Sparkles, 
-  Info,
   Dna,
   ArrowUp
 } from 'lucide-react';
@@ -18,7 +17,6 @@ interface SidebarProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
   onOpenCreateModal: () => void;
-  onOpenAboutModal: () => void;
   favoriteCount: number;
 }
 
@@ -26,7 +24,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   setActiveTab,
   onOpenCreateModal,
-  onOpenAboutModal,
   favoriteCount
 }) => {
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -66,12 +63,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'challenges' as ActiveTab,
-      label: 'โจทย์จริง & SDGs',
+      label: 'โจทย์จริง & ความต้องการ',
       icon: Target,
     },
     {
       id: 'analytics' as ActiveTab,
-      label: 'สถิติผลกระทบ SDGs',
+      label: 'สถิติคลังโครงงาน',
       icon: BarChart3,
     },
     {
@@ -93,7 +90,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       </div>
 
-      {/* Top Logo with Pulse Animation */}
+      {/* Top Logo */}
       <div className="flex flex-col items-center space-y-2">
         <button
           onClick={() => {
@@ -108,7 +105,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <span className="text-[11px] font-black tracking-wider text-slate-950 drop-shadow-xs">DNA</span>
       </div>
 
-      {/* Center Nav Buttons (Smooth Floating & Active Pill) */}
+      {/* Center Nav Buttons */}
       <nav 
         className="flex flex-col items-center space-y-3.5 my-auto transition-transform duration-300 ease-out"
         style={{
@@ -169,10 +166,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </nav>
 
-      {/* Bottom Controls: Scroll To Top & Info */}
-      <div className="flex flex-col items-center space-y-2">
-        {/* Dynamic Scroll-To-Top Button when scrolled */}
-        {showScrollTop && (
+      {/* Bottom Control: Scroll To Top */}
+      <div className="flex flex-col items-center">
+        {showScrollTop ? (
           <button
             onClick={scrollToTop}
             className="w-10 h-10 rounded-xl bg-slate-900/90 text-amber-400 hover:bg-slate-900 hover:scale-110 flex items-center justify-center transition-all shadow-md animate-in fade-in zoom-in group relative"
@@ -183,18 +179,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               กลับขึ้นบน
             </span>
           </button>
+        ) : (
+          <div className="w-10 h-10" />
         )}
-
-        <button
-          onClick={onOpenAboutModal}
-          className="w-10 h-10 rounded-xl bg-white/25 hover:bg-white/45 text-slate-900 flex items-center justify-center transition-all group relative hover:scale-105"
-          title="ข้อมูลโครงการ & ทีม Ambatukam"
-        >
-          <Info className="w-5 h-5" />
-          <span className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-2xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-            เกี่ยวกับโปรเจกต์ & ทีม
-          </span>
-        </button>
       </div>
     </aside>
   );

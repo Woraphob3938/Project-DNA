@@ -1,54 +1,67 @@
-import { SdgGoal, Department, Project, Challenge, ProjectLineageEdge } from '../types/dna';
+import { Faculty, Department, Project, Challenge, ProjectLineageEdge } from '../types/dna';
 
-export const SEED_SDGS: SdgGoal[] = [
+export const SEED_FACULTIES: Faculty[] = [
   {
-    id: 4,
-    code: 'SDG 4',
-    name_th: 'การศึกษาที่มีคุณภาพ',
-    name_en: 'Quality Education',
-    color_hex: '#C5192D',
-    icon_name: 'GraduationCap'
+    id: 'fac-kuse',
+    name_th: 'คณะวิทยาศาสตร์และวิศวกรรมศาสตร์',
+    name_en: 'Faculty of Science and Engineering',
+    short_name: 'KUSE',
+    color_hex: '#2563EB' // Blue
   },
   {
-    id: 9,
-    code: 'SDG 9',
-    name_th: 'อุตสาหกรรม นวัตกรรม โครงสร้างพื้นฐาน',
-    name_en: 'Industry, Innovation & Infrastructure',
-    color_hex: '#F36D25',
-    icon_name: 'Cpu'
+    id: 'fac-fam',
+    name_th: 'คณะศิลปศาสตร์และวิทยาการจัดการ',
+    name_en: 'Faculty of Liberal Arts and Management Science',
+    short_name: 'FAM',
+    color_hex: '#F59E0B' // Amber
   },
   {
-    id: 11,
-    code: 'SDG 11',
-    name_th: 'เมืองและชุมชนที่ยั่งยืน',
-    name_en: 'Sustainable Cities and Communities',
-    color_hex: '#F99D26',
-    icon_name: 'Building2'
+    id: 'fac-fnra',
+    name_th: 'คณะทรัพยากรธรรมชาติและอุตสาหกรรมเกษตร',
+    name_en: 'Faculty of Natural Resources and Agro-Industry',
+    short_name: 'FNRA',
+    color_hex: '#10B981' // Green
   },
   {
-    id: 12,
-    code: 'SDG 12',
-    name_th: 'การผลิตและบริโภคที่รับผิดชอบ',
-    name_en: 'Responsible Consumption and Production',
-    color_hex: '#CF8D2A',
-    icon_name: 'Recycle'
-  },
-  {
-    id: 17,
-    code: 'SDG 17',
-    name_th: 'ความร่วมมือเพื่อเป้าหมายการพัฒนา',
-    name_en: 'Partnerships for the Goals',
-    color_hex: '#19486A',
-    icon_name: 'Handshake'
+    id: 'fac-fph',
+    name_th: 'คณะสาธารณสุขศาสตร์',
+    name_en: 'Faculty of Public Health',
+    short_name: 'FPH',
+    color_hex: '#EC4899' // Pink / Magenta
   }
 ];
 
 export const SEED_DEPARTMENTS: Department[] = [
-  { id: 'dept-cs', code: 'CS', name_th: 'วิทยาการคอมพิวเตอร์', name_en: 'Computer Science', faculty: 'คณะวิทยาศาสตร์และวิศวกรรมศาสตร์ มก.ฉกส.' },
-  { id: 'dept-cpe', code: 'CPE', name_th: 'วิศวกรรมคอมพิวเตอร์', name_en: 'Computer Engineering', faculty: 'คณะวิทยาศาสตร์และวิศวกรรมศาสตร์ มก.ฉกส.' },
-  { id: 'dept-me', code: 'ME', name_th: 'วิศวกรรมเครื่องกลและการผลิต', name_en: 'Mechanical & Manufacturing Engineering', faculty: 'คณะวิทยาศาสตร์และวิศวกรรมศาสตร์ มก.ฉกส.' },
-  { id: 'dept-ee', code: 'EE', name_th: 'วิศวกรรมไฟฟ้า', name_en: 'Electrical Engineering', faculty: 'คณะวิทยาศาสตร์และวิศวกรรมศาสตร์ มก.ฉกส.' },
-  { id: 'dept-ce', code: 'CE', name_th: 'วิศวกรรมโยธาและสิ่งแวดล้อม', name_en: 'Civil & Environmental Engineering', faculty: 'คณะวิทยาศาสตร์และวิศวกรรมศาสตร์ มก.ฉกส.' }
+  // 1. คณะวิทยาศาสตร์และวิศวกรรมศาสตร์ (KUSE)
+  { id: 'dept-cpe', faculty_id: 'fac-kuse', code: 'CPE', name_th: 'วิศวกรรมคอมพิวเตอร์', name_en: 'Computer Engineering' },
+  { id: 'dept-cs', faculty_id: 'fac-kuse', code: 'CS', name_th: 'วิทยาการคอมพิวเตอร์', name_en: 'Computer Science' },
+  { id: 'dept-it', faculty_id: 'fac-kuse', code: 'IT', name_th: 'เทคโนโลยีสารสนเทศ', name_en: 'Information Technology' },
+  { id: 'dept-me', faculty_id: 'fac-kuse', code: 'ME', name_th: 'วิศวกรรมเครื่องกลและการผลิต', name_en: 'Mechanical & Manufacturing Engineering' },
+  { id: 'dept-ee', faculty_id: 'fac-kuse', code: 'EE', name_th: 'วิศวกรรมไฟฟ้า', name_en: 'Electrical Engineering' },
+  { id: 'dept-ce', faculty_id: 'fac-kuse', code: 'CE', name_th: 'วิศวกรรมโยธาและสิ่งแวดล้อม', name_en: 'Civil & Environmental Engineering' },
+  { id: 'dept-ie', faculty_id: 'fac-kuse', code: 'IE', name_th: 'วิศวกรรมอุตสาหการและโลจิสติกส์', name_en: 'Industrial Engineering and Logistics' },
+  { id: 'dept-ac', faculty_id: 'fac-kuse', code: 'AC', name_th: 'เคมีประยุกต์', name_en: 'Applied Chemistry' },
+
+  // 2. คณะศิลปศาสตร์และวิทยาการจัดการ (FAM)
+  { id: 'dept-mgt', faculty_id: 'fac-fam', code: 'MGT', name_th: 'การจัดการ', name_en: 'Management' },
+  { id: 'dept-mkt', faculty_id: 'fac-fam', code: 'MKT', name_th: 'การตลาด', name_en: 'Marketing' },
+  { id: 'dept-fin', faculty_id: 'fac-fam', code: 'FIN', name_th: 'การเงิน', name_en: 'Finance' },
+  { id: 'dept-acc', faculty_id: 'fac-fam', code: 'ACC', name_th: 'การบัญชี', name_en: 'Accounting' },
+  { id: 'dept-htm', faculty_id: 'fac-fam', code: 'HTM', name_th: 'การจัดการโรงแรมและท่องเที่ยว', name_en: 'Hospitality and Tourism Management' },
+  { id: 'dept-ebc', faculty_id: 'fac-fam', code: 'EBC', name_th: 'ภาษาอังกฤษเพื่อการสื่อสารธุรกิจ', name_en: 'English for Business Communication' },
+  { id: 'dept-pa', faculty_id: 'fac-fam', code: 'PA', name_th: 'รัฐประศาสนศาสตร์', name_en: 'Public Administration' },
+
+  // 3. คณะทรัพยากรธรรมชาติและอุตสาหกรรมเกษตร (FNRA)
+  { id: 'dept-as', faculty_id: 'fac-fnra', code: 'AS', name_th: 'สัตวศาสตร์', name_en: 'Animal Science' },
+  { id: 'dept-ps', faculty_id: 'fac-fnra', code: 'PS', name_th: 'พืชศาสตร์', name_en: 'Plant Science' },
+  { id: 'dept-fish', faculty_id: 'fac-fnra', code: 'FISH', name_th: 'ประมง', name_en: 'Fisheries' },
+  { id: 'dept-fst', faculty_id: 'fac-fnra', code: 'FST', name_th: 'วิทยาศาสตร์และเทคโนโลยีการอาหาร', name_en: 'Food Science and Technology' },
+  { id: 'dept-arm', faculty_id: 'fac-fnra', code: 'ARM', name_th: 'ทรัพยากรเกษตรและการจัดการการผลิต', name_en: 'Agricultural Resources Management' },
+
+  // 4. คณะสาธารณสุขศาสตร์ (FPH)
+  { id: 'dept-ph', faculty_id: 'fac-fph', code: 'PH', name_th: 'สาธารณสุขศาสตร์', name_en: 'Public Health' },
+  { id: 'dept-eh', faculty_id: 'fac-fph', code: 'EH', name_th: 'อนามัยสิ่งแวดล้อม', name_en: 'Environmental Health' },
+  { id: 'dept-ohs', faculty_id: 'fac-fph', code: 'OHS', name_th: 'อาชีวอนามัยและความปลอดภัย', name_en: 'Occupational Health and Safety' }
 ];
 
 export const SEED_LINEAGES: ProjectLineageEdge[] = [
@@ -102,17 +115,17 @@ export const SEED_CHALLENGES: Challenge[] = [
     title: 'ระบบบริหารจัดการพลังงานอัจฉริยะและการลดคาร์บอนในอาคารเรียน มก.ฉกส. (Smart Green Campus)',
     category: 'university',
     organization_name: 'กองบริหารกิจการวิทยาเขตเฉลิมพระเกียรติ จ.สกลนคร',
-    contact_person: 'ผศ.ดร. ธนกร (รองอธิการบดีฝ่ายกายภาพและสิ่งแวดล้อม)',
+    contact_person: 'รองอธิการบดีฝ่ายกายภาพและสิ่งแวดล้อม',
     description: 'มหาวิทยาลัยต้องการลดค่าไฟฟ้าอาคารเรียนรวมและหอพักนิสิต โดยใช้ AI วิเคราะห์พฤติกรรมการใช้เครื่องปรับอากาศและควบคุมระบบไฟฟ้าโซลาร์เซลล์อัตโนมัติ',
     pain_points: [
-      'ค่าไฟฟ้าอาคารเรียนรวมสูงกว่า 1.8 ล้านบาทต่อเดือนในช่วงฤดูร้อน',
+      'ค่าไฟฟ้าอาคารเรียนรวมสูงในช่วงฤดูร้อน',
       'เครื่องปรับอากาศถูกเปิดทิ้งไว้ในห้องเรียนที่ไม่มีการใช้งาน',
-      'ยังไม่มีระบบแดชบอร์ดแสดงผลการลดก๊าซเรือนกระจกแบบรวมศูนย์'
+      'ยังไม่มีระบบแดชบอร์ดแสดงผลการประหยัดพลังงานแบบรวมศูนย์'
     ],
     desired_outputs: [
       'ระบบ IoT Smart Sub-metering ตรวจวัดกระแสไฟฟ้ารายห้อง',
       'AI แนะนำการเปิด-ปิดเครื่องปรับอากาศตามตารางเรียนจริง',
-      'Web Dashboard แสดงผล Carbon Footprint Reduction'
+      'Web Dashboard แสดงผลการประหยัดพลังงาน'
     ],
     location: 'มหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตเฉลิมพระเกียรติ จ.สกลนคร',
     status: 'open',
@@ -155,6 +168,25 @@ export const SEED_CHALLENGES: Challenge[] = [
     location: 'อ.เมือง จ.สกลนคร',
     status: 'open',
     matched_project_ids: ['proj-5']
+  },
+  {
+    id: 'chal-5',
+    title: 'ระบบสำรวจและติดตามภาวะสุขภาพจิตและโรคเรื้อรังในผู้สูงอายุชนบท จ.สกลนคร',
+    category: 'community',
+    organization_name: 'สำนักงานสาธารณสุขจังหวัดสกลนคร & คณะสาธารณสุขศาสตร์',
+    contact_person: 'ดร. สาธารณสุข ชุมชน',
+    description: 'พัฒนาแพลตฟอร์มคัดกรองสุขภาพผู้สูงอายุแบบดิจิทัลเพื่อช่วย อสม. ติดตามผู้ป่วยติดเตียงและภาวะสมองเสื่อมในชุมชนห่างไกล',
+    pain_points: [
+      'เอกสารคัดกรองกระดาษสูญหายและประมวลผลข้อมูลล่าช้า',
+      'ขาดเครื่องมือช่วยเตือนการรับประทานยาและการนัดหมายตรวจสุขภาพ'
+    ],
+    desired_outputs: [
+      'Mobile App สำหรับ อสม. บันทึกข้อมูลสุขภาพออฟไลน์',
+      'ระบบประเมินความเสี่ยงสุขภาพด้วย AI แจ้งเตือน รพ.สต.'
+    ],
+    location: 'จังหวัดสกลนคร',
+    status: 'open',
+    matched_project_ids: ['proj-7']
   }
 ];
 
@@ -172,7 +204,6 @@ export const SEED_PROJECTS: Project[] = [
     rating_score: 4.9,
     view_count: 1420,
     fork_count: 18,
-    sdg_ids: [9, 12],
     dna_card: {
       id: 'dna-1',
       project_id: 'proj-1',
@@ -193,10 +224,10 @@ export const SEED_PROJECTS: Project[] = [
       dataset_description: 'Time-series dataset ค่า pH และอุณหภูมิการหมักคราม 180 วัน ใน 12 บ่อหมัก (CSV 28.5MB)',
       repository_url: 'https://github.com/Woraphob3938/indigo-ferment-iot',
       demo_url: 'https://indigo-iot.kuse.ac.th',
-      advisor_name: 'ผศ.ดร.สมชาย ใจดี',
+      advisor_name: 'ผศ.ดร. อาจารย์ที่ปรึกษาประจำสาขา',
       student_authors: [
-        { name: 'นายพัชรพล วงค์คำ', student_id: '6840209388', role: 'Hardware & Firmware Lead' },
-        { name: 'น.ส.ชัชนัน บุญเหลือง', student_id: '6740205106', role: 'System Architecture & Enclosure' }
+        { name: 'นิสิตรุ่นพี่ผู้จัดทำ 1', student_id: '644020xxxx', role: 'Hardware & Firmware Lead' },
+        { name: 'นิสิตรุ่นพี่ผู้จัดทำ 2', student_id: '644020xxxx', role: 'System Architecture' }
       ]
     },
     assets: [
@@ -261,7 +292,6 @@ export const SEED_PROJECTS: Project[] = [
     rating_score: 4.95,
     view_count: 1980,
     fork_count: 24,
-    sdg_ids: [9, 11, 12],
     dna_card: {
       id: 'dna-2',
       project_id: 'proj-2',
@@ -282,10 +312,10 @@ export const SEED_PROJECTS: Project[] = [
       dataset_description: 'ชุดภาพถ่ายผ้าย้อมครามแท้และสังเคราะห์ 12,000 ภาพ พร้อม Bounding Box Annotations (COCO Format)',
       repository_url: 'https://github.com/Woraphob3938/indigo-defect-vision',
       demo_url: 'https://indigo-ai.kuse.ac.th',
-      advisor_name: 'รศ.ดร.วิศวกรรม นวัตกรรม',
+      advisor_name: 'รศ.ดร. อาจารย์ที่ปรึกษาประจำภาควิชา',
       student_authors: [
-        { name: 'นายวรภพ ไชยวงศ์คต', student_id: '6640203938', role: 'AI / ML Research Lead' },
-        { name: 'นายพิพัฒน์ โพธิ์ศรีสุข', student_id: '6640207426', role: 'Fullstack & Edge Deployment' }
+        { name: 'นิสิตรุ่นพี่ผู้จัดทำ 1', student_id: '654020xxxx', role: 'AI / ML Research Lead' },
+        { name: 'นิสิตรุ่นพี่ผู้จัดทำ 2', student_id: '654020xxxx', role: 'Fullstack & Edge Deployment' }
       ]
     },
     assets: [
@@ -360,7 +390,6 @@ export const SEED_PROJECTS: Project[] = [
     rating_score: 4.75,
     view_count: 1150,
     fork_count: 15,
-    sdg_ids: [9, 11],
     dna_card: {
       id: 'dna-3',
       project_id: 'proj-3',
@@ -379,9 +408,9 @@ export const SEED_PROJECTS: Project[] = [
       hardware_specs: 'SX1276 LoRa Module, STM32F4 Microcontroller, 5kW Solar Inverter, Ultrasonic Water Level Sensor',
       dataset_description: 'ข้อมูลสถิติการเปิด-ปิดปั๊มน้ำและระดับน้ำลุ่มน้ำก่ำ 1 ปี (CSV 14MB)',
       repository_url: 'https://github.com/Woraphob3938/solar-lora-pumping',
-      advisor_name: 'ผศ.ดร. นครินทร์ ไฟฟ้ามั่นคง',
+      advisor_name: 'ผศ.ดร. อาจารย์ประจำภาควิชาวิศวกรรมไฟฟ้า',
       student_authors: [
-        { name: 'นายพัชรพล วงค์คำ', student_id: '6840209388', role: 'Embedded Systems & LoRa Lead' }
+        { name: 'นิสิตรุ่นพี่ผู้จัดทำ', student_id: '644020xxxx', role: 'Embedded Systems & LoRa Lead' }
       ]
     },
     assets: [
@@ -413,7 +442,6 @@ export const SEED_PROJECTS: Project[] = [
     rating_score: 4.92,
     view_count: 1340,
     fork_count: 22,
-    sdg_ids: [9, 11],
     dna_card: {
       id: 'dna-4',
       project_id: 'proj-4',
@@ -429,9 +457,9 @@ export const SEED_PROJECTS: Project[] = [
         'ต้องอาศัยข้อมูลสภาพอากาศจากกรมอุตุนิยมวิทยาประกอบการพยากรณ์',
         'ยังไม่ได้คำนึงถึงผลกระทบจากการสร้างสิ่งกีดขวางทางน้ำชั่วคราวของชุมชน'
       ],
-      advisor_name: 'รศ.ดร. สกล คำนวณศิลป์',
+      advisor_name: 'รศ.ดร. อาจารย์ประจำภาควิชาวิศวกรรมคอมพิวเตอร์',
       student_authors: [
-        { name: 'นายพิพัฒน์ โพธิ์ศรีสุข', student_id: '6640207426', role: 'AI Modeler' }
+        { name: 'นิสิตรุ่นพี่ผู้จัดทำ', student_id: '654020xxxx', role: 'AI Modeler' }
       ]
     },
     parent_lineages: [SEED_LINEAGES[1]],
@@ -445,16 +473,15 @@ export const SEED_PROJECTS: Project[] = [
     abstract_en: '3D point cloud cattle body dimension scanning to estimate live weight with 94% accuracy without physical weighing scales.',
     academic_year: 2567,
     status: 'completed',
-    department_id: 'dept-cs',
+    department_id: 'dept-as',
     cover_image_url: 'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?w=800&auto=format&fit=crop&q=60',
     rating_score: 4.88,
     view_count: 1620,
     fork_count: 25,
-    sdg_ids: [9, 12],
     dna_card: {
       id: 'dna-5',
       project_id: 'proj-5',
-      problem_statement: 'การชั่งน้ำหนักโคขุนขนาด 600-800 กิโลกรัมด้วยเครื่องชั่งแบบเดิม ทำให้สัตว์ตื่นตกใจ เกิดอาการบาดเจ็บ และส่งผลต่อคุณภาพเนื้อ (เกิดเนื้อ DFD)',
+      problem_statement: 'การชั่งน้ำหนักโคขุนขนาด 600-800 กิโลกรัมด้วยเครื่องชั่งแบบเดิม ทำให้สัตว์ตื่นตกใจ เกิดอาการบาดเจ็บ และส่งผลต่อคุณภาพเนื้อ',
       target_users: ['สหกรณ์โคขุนโพนยางคำ', 'ฟาร์มปศุสัตว์มาตรฐาน', 'สัตวแพทย์คุมฟาร์ม'],
       tech_stack: ['Python', 'Intel RealSense SDK', 'PointNet++', 'Open3D', 'PyTorch', 'Streamlit'],
       key_outcomes: [
@@ -466,9 +493,9 @@ export const SEED_PROJECTS: Project[] = [
         'กล้องต้องติดตั้งในระยะ 2.5 - 3.5 เมตรในมุม 45 องศา',
         'สภาพแสงในคอกวัวต้องไม่มืดสนิท'
       ],
-      advisor_name: 'ผศ.ดร. นเรศ ปศุสัตว์วิทย์',
+      advisor_name: 'ผศ.ดร. อาจารย์ประจำสาขาสัตวศาสตร์',
       student_authors: [
-        { name: 'นายวรภพ ไชยวงศ์คต', student_id: '6640203938', role: '3D Computer Vision Lead' }
+        { name: 'นิสิตรุ่นพี่ผู้จัดทำ', student_id: '654020xxxx', role: '3D Computer Vision Lead' }
       ]
     },
     matched_challenge_ids: ['chal-4']
@@ -486,7 +513,6 @@ export const SEED_PROJECTS: Project[] = [
     rating_score: 4.95,
     view_count: 2100,
     fork_count: 31,
-    sdg_ids: [9, 11, 12],
     parent_lineages: [SEED_LINEAGES[2]]
   },
   {
@@ -497,19 +523,19 @@ export const SEED_PROJECTS: Project[] = [
     abstract_en: 'TinyML wearable on wrist detecting accidental falls within 3 seconds and alerting local healthcare units.',
     academic_year: 2567,
     status: 'completed',
-    department_id: 'dept-ee',
+    department_id: 'dept-ph',
     cover_image_url: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&auto=format&fit=crop&q=60',
     rating_score: 4.78,
     view_count: 890,
     fork_count: 9,
-    sdg_ids: [4, 11]
+    matched_challenge_ids: ['chal-5']
   },
   {
     id: 'proj-8',
     title_th: 'ระบบตรวจวัดและบริหารจัดการถังหมักก๊าซชีวภาพจากเศษอาหารโรงอาหาร มก.ฉกส. อัจฉริยะ',
     title_en: 'Smart Biogas Digester Monitoring and Food Waste Optimization for KUSE Campus Cafeteria',
-    abstract_th: 'เปลี่ยนเศษอาหาร 300 กก./วัน ในโรงอาหารมหาวิทยาลัยเป็นพลังงานก๊าซชีวภาพ พร้อมแดชบอร์ดแสดงผลการผลิตก๊าซมีเทนและลดการปล่อยคาร์บอนฟุตพริ้นท์แบบเรียลไทม์',
-    abstract_en: 'Transforming 300kg daily campus food waste into green biogas with real-time carbon reduction telemetry.',
+    abstract_th: 'เปลี่ยนเศษอาหาร 300 กก./วัน ในโรงอาหารมหาวิทยาลัยเป็นพลังงานก๊าซชีวภาพ พร้อมแดชบอร์ดแสดงผลการผลิตก๊าซมีเทนและประหยัดพลังงานแบบเรียลไทม์',
+    abstract_en: 'Transforming 300kg daily campus food waste into green biogas with real-time energy telemetry.',
     academic_year: 2568,
     status: 'completed',
     department_id: 'dept-ce',
@@ -517,7 +543,21 @@ export const SEED_PROJECTS: Project[] = [
     rating_score: 4.82,
     view_count: 760,
     fork_count: 14,
-    sdg_ids: [11, 12, 17],
     matched_challenge_ids: ['chal-2']
+  },
+  {
+    id: 'proj-9',
+    title_th: 'ระบบวิเคราะห์การตลาดดิจิทัลและช่องทางจำหน่ายผลิตภัณฑ์ชุมชน GI สกลนคร',
+    title_en: 'Digital Marketing Analytics and Omni-channel Distribution for Sakon Nakhon GI Products',
+    abstract_th: 'พัฒนาระบบแดชบอร์ดวิเคราะห์พฤติกรรมผู้บริโภคออนไลน์และระบบจัดการสต็อกอัตโนมัติสำหรับวิสาหกิจชุมชนผ้าครามและข้าวฮางทองสกลทวาปี',
+    abstract_en: 'Omni-channel marketing and inventory optimization platform for geographical indication community products.',
+    academic_year: 2567,
+    status: 'completed',
+    department_id: 'dept-mkt',
+    cover_image_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=60',
+    rating_score: 4.86,
+    view_count: 1040,
+    fork_count: 11,
+    matched_challenge_ids: ['chal-1']
   }
 ];

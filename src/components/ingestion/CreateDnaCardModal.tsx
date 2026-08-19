@@ -4,22 +4,18 @@ import React, { useState } from 'react';
 import { 
   X, 
   Sparkles, 
-  Upload, 
-  FileText, 
   Check, 
   Loader2, 
-  Plus, 
-  AlertCircle,
   Dna
 } from 'lucide-react';
-import { Project, Department, SdgGoal } from '@/types/dna';
+import { Project, Department, Faculty } from '@/types/dna';
 import { extractDnaWithGemini } from '@/lib/geminiService';
 
 interface CreateDnaCardModalProps {
   isOpen: boolean;
   onClose: () => void;
   departments: Department[];
-  sdgs: SdgGoal[];
+  faculties: Faculty[];
   onSuccessCreate: (newProject: Partial<Project>) => void;
 }
 
@@ -27,7 +23,7 @@ export const CreateDnaCardModal: React.FC<CreateDnaCardModalProps> = ({
   isOpen,
   onClose,
   departments,
-  sdgs,
+  faculties,
   onSuccessCreate
 }) => {
   const [inputText, setInputText] = useState('');
@@ -38,12 +34,12 @@ export const CreateDnaCardModal: React.FC<CreateDnaCardModalProps> = ({
 
   const sampleAbstracts = [
     {
-      title: 'ตัวอย่าง: โครงงานระบบตรวจจับแมลงศัตรูพืชในสวนผลไม้ด้วย IoT & Edge AI',
+      title: 'ตัวอย่าง (เกษตร/วิศวะ): ระบบตรวจจับแมลงศัตรูพืชในสวนผลไม้ด้วย IoT & Edge AI',
       text: 'โครงงานนี้นำเสนอการพัฒนาระบบกับดักแมลงอัจฉริยะพลังงานแสงอาทิตย์ โดยใช้กล้องถ่ายภาพความละเอียด 8MP และไมโครคอนโทรลเลอร์ ESP32-CAM ประมวลผลโมเดล MobileNetV2 เพื่อจำแนกชนิดแมลงศัตรูพืชและแมลงตัวห้ำตัวเบียน พร้อมส่งข้อมูลพิกัดและจำนวนแมลงผ่านเครือข่าย NB-IoT ไปยังคลาวด์แดชบอร์ด เพื่อเตือนภัยเกษตรกรฉีดพ่นสารชีวภัณฑ์ตรงเวลา ลดการสูญเสียผลผลิตลง 30%'
     },
     {
-      title: 'ตัวอย่าง: ระบบบริหารจัดการขยะรีไซเคิลอัจฉริยะในมหาวิทยาลัย (Smart Bin)',
-      text: 'พัฒนานวัตกรรมถังขยะอัจฉริยะตรวจจับและคัดแยกขยะ 4 ประเภท (ขวดพลาสติก PET, กระป๋องอลูมิเนียม, กล่องกระดาษ, ขยะทั่วไป) ด้วยเซ็นเซอร์ตรวจจับโลหะและกล้องประมวลผลภาพ AI YOLOv8 พร้อมระบบสะสมคะแนน Green Points ผ่าน LINE Official Account เพื่อส่งเสริมพฤติกรรมการแยกขยะของนิสิต มก.ฉกส.'
+      title: 'ตัวอย่าง (สัตวศาสตร์/คอมฯ): ระบบวิเคราะห์สุขภาพและพฤติกรรมโคขุนโพนยางคำ',
+      text: 'พัฒนาระบบประมวลผลภาพ 3D Vision เพื่อประเมินน้ำหนักและตรวจจับความเครียดของโคขุนโพนยางคำขณะเดินผ่านคอกตรวจสุขภาพ เพื่อลดการบาดเจ็บจากการชั่งน้ำหนักแบบเดิม และส่งออกข้อมูลประวัติสุขภาพผ่านเว็บแอปพลิเคชัน'
     }
   ];
 
@@ -63,14 +59,15 @@ export const CreateDnaCardModal: React.FC<CreateDnaCardModalProps> = ({
   const handleSave = () => {
     if (!extractedData) return;
 
+    const matchedDept = departments.find(d => d.code === extractedData.department_code) || departments[0];
+
     const newProj: Partial<Project> = {
       title_th: extractedData.title_th || 'โครงงานนิสิต มก.ฉกส.',
       title_en: extractedData.title_en || 'KUSE Student Project',
       abstract_th: inputText,
       academic_year: extractedData.academic_year || 2568,
       status: 'in_progress',
-      department_id: departments.find(d => d.code === extractedData.department_code)?.id || departments[0]?.id || 'dept-cs',
-      sdg_ids: extractedData.sdg_ids || [9, 12],
+      department_id: matchedDept?.id || 'dept-cs',
       rating_score: 5.0,
       cover_image_url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop&q=60',
       dna_card: {
@@ -185,7 +182,7 @@ export const CreateDnaCardModal: React.FC<CreateDnaCardModalProps> = ({
                   <span>ผลลัพธ์การสกัด DNA Card สำเร็จ</span>
                 </span>
                 <span className="text-xs font-bold px-2 py-0.5 bg-slate-900 text-amber-400 rounded">
-                  {extractedData.department_code} • ปี {extractedData.academic_year}
+                  สาขา {extractedData.department_code} • ปี {extractedData.academic_year}
                 </span>
               </div>
 
@@ -200,9 +197,6 @@ export const CreateDnaCardModal: React.FC<CreateDnaCardModalProps> = ({
                 </div>
                 <div>
                   <strong>Tech Stack:</strong> {extractedData.dna_card?.tech_stack?.join(', ')}
-                </div>
-                <div>
-                  <strong>SDGs ที่เกี่ยวข้อง:</strong> {extractedData.sdg_ids?.map((s: number) => `SDG ${s}`).join(', ')}
                 </div>
               </div>
 

@@ -3,34 +3,30 @@
 import React from 'react';
 import { 
   BarChart3, 
-  TrendingUp, 
   GitFork, 
   Sparkles, 
-  Users, 
-  Recycle, 
-  Cpu, 
-  Building2, 
-  GraduationCap, 
   Handshake,
-  Download
+  Download,
+  GraduationCap,
+  Layers,
+  FileCode
 } from 'lucide-react';
-import { Project, SdgGoal, Challenge } from '@/types/dna';
+import { Project, Faculty, Challenge } from '@/types/dna';
 
-interface SdgAnalyticsProps {
+interface ProjectAnalyticsProps {
   projects: Project[];
-  sdgs: SdgGoal[];
+  faculties: Faculty[];
   challenges: Challenge[];
 }
 
-export const SdgAnalytics: React.FC<SdgAnalyticsProps> = ({
+export const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({
   projects,
-  sdgs,
+  faculties,
   challenges
 }) => {
   // Compute analytics
   const totalReusableAssets = projects.reduce((acc, p) => acc + (p.assets?.length || 0), 0);
   const totalDownloads = projects.reduce((acc, p) => acc + (p.assets?.reduce((a, as) => a + (as.download_count || 0), 0) || 0), 0);
-  const totalGapsIdentified = projects.reduce((acc, p) => acc + (p.gaps?.length || 0), 0);
   const totalLineages = projects.filter(p => (p.parent_lineages?.length || 0) > 0 || (p.child_lineages?.length || 0) > 0).length;
 
   return (
@@ -40,13 +36,13 @@ export const SdgAnalytics: React.FC<SdgAnalyticsProps> = ({
       <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950 text-white p-6 md:p-8 rounded-3xl shadow-xl">
         <div className="flex items-center space-x-2 text-amber-400 text-xs font-bold uppercase tracking-wider mb-2">
           <BarChart3 className="w-4 h-4" />
-          <span>SDGS & KNOWLEDGE REUSE ANALYTICS</span>
+          <span>PROJECT & KNOWLEDGE REUSE ANALYTICS</span>
         </div>
         <h2 className="text-2xl md:text-3xl font-black tracking-tight">
-          แดชบอร์ดความคุ้มค่าและผลกระทบ SDGs
+          สถิติคลังโครงงานและองค์ความรู้ มก.ฉกส.
         </h2>
         <p className="text-xs md:text-sm text-slate-300 mt-2 leading-relaxed">
-          สรุปการประหยัดทรัพยากร การหมุนเวียนโค้ด/ชุดข้อมูล และการเชื่อมโยงเป้าหมายการพัฒนาที่ยั่งยืน (SDGs 4, 9, 11, 12, 17)
+          สรุปภาพรวมการสร้างนวัตกรรม การหมุนเวียนโค้ด/ชุดข้อมูลเพื่อต่อยอด และสัดส่วนผลงานจำแนกตามคณะและสาขาวิชา มหาวิทยาลัยเกษตรศาสตร์ สกลนคร
         </p>
       </div>
 
@@ -56,17 +52,17 @@ export const SdgAnalytics: React.FC<SdgAnalyticsProps> = ({
         {/* Metric 1 */}
         <div className="p-5 bg-white rounded-3xl border border-slate-200 shadow-soft">
           <div className="flex items-center justify-between text-amber-600">
-            <span className="text-xs font-bold text-slate-500">โครงงานทั้งหมด</span>
+            <span className="text-xs font-bold text-slate-500">โครงงานในระบบ</span>
             <div className="p-2 bg-amber-50 rounded-xl"><Sparkles className="w-5 h-5" /></div>
           </div>
           <div className="text-3xl font-black text-slate-900 mt-2">{projects.length}</div>
-          <div className="text-[11px] text-emerald-600 font-bold mt-1">✓ รวบรวมองค์ความรู้ 5 สาขาวิชา</div>
+          <div className="text-[11px] text-emerald-600 font-bold mt-1">✓ ครอบคลุม 4 คณะในวิทยาเขต</div>
         </div>
 
         {/* Metric 2 */}
         <div className="p-5 bg-white rounded-3xl border border-slate-200 shadow-soft">
           <div className="flex items-center justify-between text-blue-600">
-            <span className="text-xs font-bold text-slate-500">สัดส่วนการต่อยอด (Lineage)</span>
+            <span className="text-xs font-bold text-slate-500">อัตราการต่อยอด (Lineage)</span>
             <div className="p-2 bg-blue-50 rounded-xl"><GitFork className="w-5 h-5" /></div>
           </div>
           <div className="text-3xl font-black text-slate-900 mt-2">
@@ -78,7 +74,7 @@ export const SdgAnalytics: React.FC<SdgAnalyticsProps> = ({
         {/* Metric 3 */}
         <div className="p-5 bg-white rounded-3xl border border-slate-200 shadow-soft">
           <div className="flex items-center justify-between text-emerald-600">
-            <span className="text-xs font-bold text-slate-500">ยอดดาวน์โหลดทรัพยากรซ้ำ</span>
+            <span className="text-xs font-bold text-slate-500">ดาวน์โหลดทรัพยากรซ้ำ</span>
             <div className="p-2 bg-emerald-50 rounded-xl"><Download className="w-5 h-5" /></div>
           </div>
           <div className="text-3xl font-black text-slate-900 mt-2">{totalDownloads.toLocaleString()}</div>
@@ -92,40 +88,41 @@ export const SdgAnalytics: React.FC<SdgAnalyticsProps> = ({
             <div className="p-2 bg-purple-50 rounded-xl"><Handshake className="w-5 h-5" /></div>
           </div>
           <div className="text-3xl font-black text-slate-900 mt-2">{challenges.length}</div>
-          <div className="text-[11px] text-slate-500 mt-1">ครอบคลุมชุมชนและอุตสาหกรรม</div>
+          <div className="text-[11px] text-slate-500 mt-1">จากชุมชนและอุตสาหกรรม</div>
         </div>
 
       </div>
 
-      {/* SDG Impact Breakdown */}
+      {/* Faculty Breakdown */}
       <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-soft space-y-6">
-        <h3 className="text-lg font-black text-slate-900">
-          การจัดสรรโครงงานตามเป้าหมายการพัฒนาที่ยั่งยืน (SDG Impact Distribution)
+        <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
+          <GraduationCap className="w-5 h-5 text-amber-500" />
+          <span>สัดส่วนโครงงานจำแนกตามคณะ (Faculty Distribution)</span>
         </h3>
 
         <div className="space-y-4">
-          {sdgs.map((sdg) => {
-            const count = projects.filter(p => p.sdg_ids.includes(sdg.id)).length;
+          {faculties.map((fac) => {
+            const count = projects.filter(p => p.department?.faculty_id === fac.id).length;
             const percentage = Math.round((count / (projects.length || 1)) * 100);
 
             return (
-              <div key={sdg.id} className="space-y-1.5">
+              <div key={fac.id} className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center space-x-2">
                     <span
-                      style={{ backgroundColor: sdg.color_hex }}
+                      style={{ backgroundColor: fac.color_hex }}
                       className="text-white text-[10px] font-black px-2 py-0.5 rounded shadow-2xs"
                     >
-                      {sdg.code}
+                      {fac.short_name}
                     </span>
-                    <span className="font-bold text-slate-800">{sdg.name_th}</span>
+                    <span className="font-bold text-slate-800">{fac.name_th}</span>
                   </div>
                   <span className="font-bold text-slate-600">{count} โครงงาน ({percentage}%)</span>
                 </div>
 
                 <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
                   <div
-                    style={{ width: `${percentage}%`, backgroundColor: sdg.color_hex }}
+                    style={{ width: `${Math.max(percentage, 5)}%`, backgroundColor: fac.color_hex }}
                     className="h-full rounded-full transition-all duration-500"
                   />
                 </div>
