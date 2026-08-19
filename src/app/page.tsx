@@ -165,6 +165,7 @@ export default function HomePage() {
         
         {/* Top Sticky Header */}
         <Header
+          activeTab={activeTab}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           faculties={faculties}
