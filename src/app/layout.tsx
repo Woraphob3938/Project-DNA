@@ -27,8 +27,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="th" className={`${prompt.variable} ${sarabun.variable}`}>
-      <body className="antialiased font-sans bg-[#F4F5F7] text-slate-900 min-h-screen">
+    <html 
+      lang="th" 
+      className={`${prompt.variable} ${sarabun.variable}`}
+      suppressHydrationWarning
+    >
+      <body 
+        className="antialiased font-sans bg-[#F4F5F7] text-slate-900 min-h-screen"
+        suppressHydrationWarning
+      >
         {children}
       </body>
     </html>
