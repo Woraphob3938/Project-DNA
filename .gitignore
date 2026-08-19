@@ -33,3 +33,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# MCP & local sessions / secret caches
+.godkiller*
+.codebase-memory*
+.agents/hooks/*.local.*
+*.seal
+mcp.local.json

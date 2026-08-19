@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "godkiller": {
+      "command": "python",
+      "args": ["-m", "godkiller_mcp.server"],
+      "env": {
+        "GODKILLER_PROFILE": "ship"
+      }
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "codebase-memory": {
+      "command": "codebase-memory-mcp",
+      "args": []
+    },
+    "chrome-devtools": {
+      "command": "python",
+      "args": ["tools/chrome-devtools-mcp/server.py"],
+      "env": {
+        "CHROME_DEBUG_PORT": "9222"
+      }
+    }
+  }
+}
