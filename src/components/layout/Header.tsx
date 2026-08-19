@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Search, Plus, GraduationCap, Building, LogIn } from 'lucide-react';
+import { Search, Plus, GraduationCap, Building, Calendar, LogIn } from 'lucide-react';
 import { Faculty, Department, ActiveTab } from '@/types/dna';
 
 interface HeaderProps {
@@ -15,6 +15,9 @@ interface HeaderProps {
   departments: Department[];
   selectedDept: string | null;
   setSelectedDept: (code: string | null) => void;
+  availableYears?: number[];
+  selectedYear?: number | null;
+  setSelectedYear?: (year: number | null) => void;
   onOpenCreateModal: () => void;
   totalProjects: number;
 }
@@ -29,6 +32,9 @@ export const Header: React.FC<HeaderProps> = ({
   departments,
   selectedDept,
   setSelectedDept,
+  availableYears = [],
+  selectedYear = null,
+  setSelectedYear,
   onOpenCreateModal,
   totalProjects
 }) => {
@@ -98,7 +104,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Faculty & Department Filter Bar (Only visible on explore / favorites tab) */}
+      {/* Filter Bar (Only visible on explore / favorites tab) */}
       {showSearchAndFilters && (
         <div className="max-w-7xl mx-auto mt-3.5 pt-3 border-t border-slate-100 space-y-2 text-xs">
           
@@ -174,6 +180,41 @@ export const Header: React.FC<HeaderProps> = ({
               );
             })}
           </div>
+
+          {/* Year (ปีการศึกษา พ.ศ.) Pills */}
+          {availableYears && availableYears.length > 0 && setSelectedYear && (
+            <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 max-w-full">
+              <span className="text-slate-400 font-medium flex items-center mr-1 shrink-0">
+                <Calendar className="w-3.5 h-3.5 mr-1" /> ปี พ.ศ.:
+              </span>
+              <button
+                onClick={() => setSelectedYear(null)}
+                className={`px-2.5 py-0.5 rounded-md text-[11px] font-medium transition-colors shrink-0 ${
+                  selectedYear === null
+                    ? 'bg-slate-800 text-amber-300 font-bold'
+                    : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                ทุกปี
+              </button>
+              {availableYears.map((yr) => {
+                const isSelected = selectedYear === yr;
+                return (
+                  <button
+                    key={yr}
+                    onClick={() => setSelectedYear(isSelected ? null : yr)}
+                    className={`px-2.5 py-0.5 rounded-md text-[11px] font-medium transition-colors whitespace-nowrap shrink-0 border ${
+                      isSelected
+                        ? 'bg-amber-500 text-slate-950 border-amber-500 font-bold'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    ปี {yr}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
         </div>
       )}

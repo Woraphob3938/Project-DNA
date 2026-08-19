@@ -37,6 +37,7 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFaculty, setSelectedFaculty] = useState<string | null>(null);
   const [selectedDept, setSelectedDept] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
 
   // Selected Project for Drawer & Modals
@@ -115,6 +116,11 @@ export default function HomePage() {
       return false;
     }
 
+    // Academic Year filter
+    if (selectedYear && p.academic_year !== selectedYear) {
+      return false;
+    }
+
     // Search query filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -174,6 +180,9 @@ export default function HomePage() {
           departments={departments}
           selectedDept={selectedDept}
           setSelectedDept={setSelectedDept}
+          availableYears={Array.from(new Set(projects.map(p => p.academic_year))).filter(Boolean).sort((a, b) => b - a)}
+          selectedYear={selectedYear}
+          setSelectedYear={setSelectedYear}
           onOpenCreateModal={() => setIsCreateModalOpen(true)}
           totalProjects={projects.length}
         />
@@ -210,11 +219,12 @@ export default function HomePage() {
                 </div>
 
                 {/* Clear Filter Button */}
-                {(selectedFaculty !== null || selectedDept !== null || searchQuery) && (
+                {(selectedFaculty !== null || selectedDept !== null || selectedYear !== null || searchQuery) && (
                   <button
                     onClick={() => {
                       setSelectedFaculty(null);
                       setSelectedDept(null);
+                      setSelectedYear(null);
                       setSearchQuery('');
                     }}
                     className="text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors flex items-center space-x-1.5"
@@ -252,6 +262,7 @@ export default function HomePage() {
                     onClick={() => {
                       setSelectedFaculty(null);
                       setSelectedDept(null);
+                      setSelectedYear(null);
                       setSearchQuery('');
                     }}
                     className="px-4 py-2 bg-slate-900 text-amber-400 text-xs font-bold rounded-lg transition-colors hover:bg-slate-800"
