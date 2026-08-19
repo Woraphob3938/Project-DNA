@@ -7,9 +7,8 @@ import {
   Target, 
   BarChart3, 
   Bookmark, 
-  Dna,
-  ArrowUp,
-  Plus
+  Dna, 
+  ArrowUp
 } from 'lucide-react';
 import { ActiveTab } from '@/types/dna';
 
@@ -152,20 +151,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           );
         })}
 
-        {/* Action Button: AI Ingestion */}
-        <div className="pt-2 border-t border-amber-600/30 w-full flex justify-center">
-          <button
-            onClick={onOpenCreateModal}
-            className="w-12 h-12 rounded-xl bg-slate-950 text-amber-400 hover:bg-black shadow-sm flex items-center justify-center transition-colors group relative"
-            title="เพิ่ม/สกัด DNA โครงงานด้วย AI"
-            aria-label="Create DNA Card"
-          >
-            <Plus className="w-5 h-5 stroke-[2.5]" />
-            <span className="absolute left-full ml-3 px-3 py-1.5 bg-slate-950 text-white text-xs font-medium rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-              เพิ่ม DNA โครงงาน
-            </span>
-          </button>
-        </div>
       </nav>
 
       {/* Bottom Control: Scroll To Top */}
