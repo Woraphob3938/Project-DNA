@@ -3,7 +3,6 @@
 import React from 'react';
 import { 
   GitFork, 
-  Star, 
   Bookmark, 
   FileCode, 
   Database, 
@@ -143,7 +142,7 @@ export const DnaCard: React.FC<DnaCardProps> = ({
           </div>
         </div>
 
-        {/* Reusable Assets & Rating Footer */}
+        {/* Reusable Assets Footer */}
         <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs">
           
           {/* Asset Type Indicators */}
@@ -176,15 +175,9 @@ export const DnaCard: React.FC<DnaCardProps> = ({
             )}
           </div>
 
-          {/* Rating & Arrow Action */}
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-1 text-amber-600 font-bold text-xs">
-              <Star className="w-3.5 h-3.5 fill-current" />
-              <span>{project.rating_score.toFixed(1)}</span>
-            </div>
-            <div className="w-6 h-6 rounded-md bg-slate-100 group-hover:bg-slate-900 group-hover:text-amber-400 text-slate-400 flex items-center justify-center transition-colors">
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </div>
+          {/* Action Arrow Icon */}
+          <div className="w-6 h-6 rounded-md bg-slate-100 group-hover:bg-slate-900 group-hover:text-amber-400 text-slate-400 flex items-center justify-center transition-colors">
+            <ArrowUpRight className="w-3.5 h-3.5" />
           </div>
 
         </div>

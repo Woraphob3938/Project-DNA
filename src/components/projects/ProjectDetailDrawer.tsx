@@ -8,7 +8,6 @@ import {
   FileCode, 
   Database, 
   Cpu, 
-  Star, 
   Download, 
   CheckCircle2, 
   GitBranch,
@@ -103,10 +102,6 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
 
         {/* Title Section */}
         <div>
-          <div className="flex items-center space-x-2 text-amber-600 font-bold text-xs mb-1">
-            <Star className="w-4 h-4 fill-current" />
-            <span>คะแนนคุณภาพทางเทคนิค: {project.rating_score.toFixed(1)} / 5.0</span>
-          </div>
           <h2 className="font-display text-xl font-bold text-slate-900 leading-snug">
             {project.title_th}
           </h2>
