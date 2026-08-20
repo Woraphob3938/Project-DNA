@@ -84,14 +84,14 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
 
-          {/* New Project DNA Button */}
-          <button
-            onClick={onOpenCreateModal}
+          {/* Submit / New Project DNA Button */}
+          <Link
+            href="/submit"
             className="flex items-center space-x-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-bold text-sm rounded-xl shadow-xs transition-colors shrink-0"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span className="hidden sm:inline">เพิ่ม DNA โครงงาน</span>
-          </button>
+            <span className="hidden sm:inline">ลงทะเบียนโครงงาน</span>
+          </Link>
 
           {/* Login Button */}
           <Link

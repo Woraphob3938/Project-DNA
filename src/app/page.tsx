@@ -26,12 +26,12 @@ import { RefreshCw, Search, BookmarkCheck, Layers } from 'lucide-react';
 export default function HomePage() {
   // State management
   const [activeTab, setActiveTab] = useState<ActiveTab>('explore');
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [faculties, setFaculties] = useState<Faculty[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [lineages, setLineages] = useState<ProjectLineageEdge[]>([]);
-  const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [projects, setProjects] = useState<Project[]>(() => dnaService.getInitialProjects());
+  const [faculties, setFaculties] = useState<Faculty[]>(() => dnaService.getInitialFaculties());
+  const [departments, setDepartments] = useState<Department[]>(() => dnaService.getInitialDepartments());
+  const [lineages, setLineages] = useState<ProjectLineageEdge[]>(() => dnaService.getInitialLineages());
+  const [challenges, setChallenges] = useState<Challenge[]>(() => dnaService.getInitialChallenges());
+  const [loading, setLoading] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');

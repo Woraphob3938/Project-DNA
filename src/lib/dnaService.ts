@@ -9,6 +9,36 @@ class DnaService {
   private inMemoryChallenges: Challenge[] = [...SEED_CHALLENGES];
   private inMemoryLineages: ProjectLineageEdge[] = [...SEED_LINEAGES];
 
+  getInitialProjects(): Project[] {
+    return this.inMemoryProjects.map(proj => {
+      const dept = this.inMemoryDepartments.find(d => d.id === proj.department_id);
+      const faculty = dept ? this.inMemoryFaculties.find(f => f.id === dept.faculty_id) : undefined;
+      return {
+        ...proj,
+        department: dept ? { ...dept, faculty } : undefined
+      };
+    });
+  }
+
+  getInitialFaculties(): Faculty[] {
+    return this.inMemoryFaculties;
+  }
+
+  getInitialDepartments(): Department[] {
+    return this.inMemoryDepartments.map(d => ({
+      ...d,
+      faculty: this.inMemoryFaculties.find(f => f.id === d.faculty_id)
+    }));
+  }
+
+  getInitialChallenges(): Challenge[] {
+    return this.inMemoryChallenges;
+  }
+
+  getInitialLineages(): ProjectLineageEdge[] {
+    return this.inMemoryLineages;
+  }
+
   // Get all Faculties of KU Sakon Nakhon
   async getFaculties(): Promise<Faculty[]> {
     if (isSupabaseConfigured && supabase) {
