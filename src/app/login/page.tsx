@@ -82,8 +82,8 @@ export default function LoginPage() {
       </header>
 
       {/* Main Centered Login Card */}
-      <main className="flex-1 max-w-md w-full mx-auto p-4 md:p-6 flex items-center justify-center">
-        <div className="w-full bg-white rounded-3xl border border-slate-200/90 shadow-card p-6 md:p-8 space-y-6">
+      <main className="flex-1 max-w-xl w-full mx-auto p-4 md:p-8 flex items-center justify-center">
+        <div className="w-full bg-white rounded-3xl border border-slate-200/90 shadow-card p-8 md:p-10 space-y-6">
           
           {/* Form Heading */}
           <div>
