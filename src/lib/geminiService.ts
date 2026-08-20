@@ -242,3 +242,136 @@ function generateSmartMockExtraction(rawText: string) {
     ]
   };
 }
+
+export async function rankProjectsWithAi(
+  profile: {
+    query?: string;
+    interest_areas?: string[];
+    current_skills?: string[];
+    target_goal?: string;
+    preferred_faculty_id?: string;
+  },
+  candidateProjects: any[]
+): Promise<{
+  project_id: string;
+  match_score: number;
+  match_reason: string;
+  matched_skills?: string[];
+  learning_tips?: string;
+}[]> {
+  const query = (profile.query || '').trim();
+  const interests = profile.interest_areas || [];
+  const skills = profile.current_skills || [];
+  const goal = profile.target_goal || 'general';
+
+  if (isGeminiConfigured) {
+    try {
+      const genAI = new GoogleGenerativeAI(geminiApiKey);
+      const projectSummaries = candidateProjects.map(p => ({
+        id: p.id,
+        title_th: p.title_th,
+        title_en: p.title_en,
+        abstract: (p.abstract_th || '').slice(0, 180),
+        tech_stack: p.dna_card?.tech_stack || [],
+        problem: (p.dna_card?.problem_statement || '').slice(0, 150),
+        faculty: p.department?.faculty?.name_th || '',
+        dept: p.department?.name_th || '',
+        has_code: p.assets?.some((a: any) => a.asset_type === 'code_repo'),
+        has_dataset: p.assets?.some((a: any) => a.asset_type === 'dataset'),
+        has_lineage: Boolean(p.parent_lineages?.length || p.child_lineages?.length)
+      }));
+
+      const prompt = `
+คุณเป็นผู้เชี่ยวชาญด้านการแนะนำและจับคู่โครงงานวิจัยนิสิต มหาวิทยาลัยเกษตรศาสตร์ สกลนคร (KU CSC)
+โปรดวิเคราะห์ความต้องการของผู้ใช้และให้คะแนนความเหมาะสม (Match Score 0 - 100%) พร้อมเหตุผลสำหรับโครงงานแต่ละชิ้น
+
+ข้อมูลความต้องการของผู้ใช้:
+- คำค้นหา/โจทย์ที่ต้องการ: "${query}"
+- ความสนใจหลัก: ${interests.join(', ') || 'ทั่วไป'}
+- ทักษะที่มี: ${skills.join(', ') || 'ทั่วไป'}
+- วัตถุประสงค์: ${goal}
+- คณะที่เล็งไว้: ${profile.preferred_faculty_id || 'ทุกคณะ'}
+
+รายการโครงงานที่ต้องวิเคราะห์:
+${JSON.stringify(projectSummaries, null, 2)}
+
+ตอบกลับเฉพาะ JSON Array เรียงลำดับจากคะแนนสูงสุดไปต่ำสุด:
+[
+  {
+    "project_id": "proj-1",
+    "match_score": 95,
+    "match_reason": "ตรงกับความสนใจด้าน... และสอดคล้องกับทักษะ Python/IoT ที่คุณมี พร้อมมีโค้ดให้ต่อยอดทันที",
+    "matched_skills": ["Python", "Computer Vision"],
+    "learning_tips": "แนะนำศึกษาเพิ่มเติมเรื่อง PyTorch และ MQTT"
+  }
+]
+`;
+
+      const modelNames = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+      let result = null;
+      let lastErr = null;
+
+      for (const mName of modelNames) {
+        try {
+          const model = genAI.getGenerativeModel({ model: mName });
+          result = await model.generateContent(prompt);
+          if (result) break;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+
+      if (result) {
+        const text = result.response.text();
+        const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(cleaned);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Live Gemini rankProjectsWithAi error, falling back:', e);
+    }
+  }
+
+  // Smart Offline Heuristic Matcher
+  const allTerms = [
+    query.toLowerCase(),
+    ...interests.map(i => i.toLowerCase()),
+    ...skills.map(s => s.toLowerCase())
+  ].filter(Boolean);
+
+  return candidateProjects.map(p => {
+    let score = 50; // base score
+    const title = (p.title_th + ' ' + (p.title_en || '')).toLowerCase();
+    const abstract = (p.abstract_th || '').toLowerCase();
+    const tech = (p.dna_card?.tech_stack || []).map((t: string) => t.toLowerCase());
+    const matchedSkills: string[] = [];
+
+    allTerms.forEach(term => {
+      if (!term) return;
+      if (title.includes(term)) score += 20;
+      if (abstract.includes(term)) score += 10;
+      tech.forEach((t: string) => {
+        if (t.includes(term) || term.includes(t)) {
+          score += 15;
+          matchedSkills.push(t);
+        }
+      });
+    });
+
+    if (goal === 'extend_code' && p.assets?.some((a: any) => a.asset_type === 'code_repo')) score += 15;
+    if (goal === 'use_dataset' && p.assets?.some((a: any) => a.asset_type === 'dataset')) score += 15;
+    if (profile.preferred_faculty_id && p.department?.faculty_id === profile.preferred_faculty_id) score += 10;
+
+    const normalizedScore = Math.min(99, Math.max(45, score));
+    return {
+      project_id: p.id,
+      match_score: normalizedScore,
+      match_reason: `สอดคล้องกับหัวข้อ ${p.department?.name_th || 'มก.ฉกส.'} และเทคโนโลยี ${p.dna_card?.tech_stack?.slice(0, 2).join(', ') || 'หลัก'}`,
+      matched_skills: Array.from(new Set(matchedSkills)),
+      learning_tips: 'สามารถศึกษา DNA Card และทรัพยากรในโครงงานเพื่อเริ่มต่อยอดได้ทันที'
+    };
+  }).sort((a, b) => b.match_score - a.match_score);
+}
+

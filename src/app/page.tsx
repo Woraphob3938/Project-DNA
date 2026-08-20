@@ -11,6 +11,7 @@ import { ProjectAnalytics } from '@/components/analytics/ProjectAnalytics';
 import { InceptionStudioModal } from '@/components/projects/InceptionStudioModal';
 import { QuickResourceModal } from '@/components/projects/QuickResourceModal';
 import { CreateDnaCardModal } from '@/components/ingestion/CreateDnaCardModal';
+import { AiMatchModal } from '@/components/discovery/AiMatchModal';
 
 import { dnaService } from '@/lib/dnaService';
 import { 
@@ -19,9 +20,11 @@ import {
   Department, 
   ProjectLineageEdge, 
   Challenge, 
-  ActiveTab 
+  ActiveTab,
+  AiMatchResult,
+  UserMatchProfile
 } from '@/types/dna';
-import { RefreshCw, Search, BookmarkCheck, Layers } from 'lucide-react';
+import { RefreshCw, Search, BookmarkCheck, Layers, Sparkles } from 'lucide-react';
 
 export default function HomePage() {
   // State management
@@ -38,7 +41,13 @@ export default function HomePage() {
   const [selectedFaculty, setSelectedFaculty] = useState<string | null>(null);
   const [selectedDept, setSelectedDept] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [resourceFilter, setResourceFilter] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
+
+  // AI Matching States
+  const [isAiMatchModalOpen, setIsAiMatchModalOpen] = useState(false);
+  const [aiMatchResults, setAiMatchResults] = useState<AiMatchResult[] | null>(null);
+  const [activeUserProfile, setActiveUserProfile] = useState<UserMatchProfile | null>(null);
 
   // Selected Project for Drawer & Modals
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -99,7 +108,7 @@ export default function HomePage() {
     }
   }, [favorites]);
 
-  // Filter projects based on Search, Faculty, Dept, and Favorites tab
+  // Filter and Rank projects based on Search, Faculty, Dept, Year, Resources, and AI Match Results
   const filteredProjects = projects.filter((p) => {
     // Favorites tab filter
     if (activeTab === 'favorites' && !favorites.includes(p.id)) {
@@ -121,6 +130,24 @@ export default function HomePage() {
       return false;
     }
 
+    // Resource availability filter
+    if (resourceFilter === 'code') {
+      const hasCode = p.assets?.some(a => a.asset_type === 'code_repo') || Boolean(p.dna_card?.repository_url);
+      if (!hasCode) return false;
+    }
+    if (resourceFilter === 'dataset') {
+      const hasDataset = p.assets?.some(a => a.asset_type === 'dataset');
+      if (!hasDataset) return false;
+    }
+    if (resourceFilter === 'model') {
+      const hasModel = p.assets?.some(a => a.asset_type === 'trained_model');
+      if (!hasModel) return false;
+    }
+    if (resourceFilter === 'lineage') {
+      const hasLineage = Boolean(p.parent_lineages?.length || p.child_lineages?.length);
+      if (!hasLineage) return false;
+    }
+
     // Search query filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -137,6 +164,14 @@ export default function HomePage() {
     }
 
     return true;
+  }).sort((a, b) => {
+    // If AI Match results exist, sort by match_score descending
+    if (aiMatchResults && aiMatchResults.length > 0) {
+      const scoreA = aiMatchResults.find(r => r.project_id === a.id)?.match_score || 0;
+      const scoreB = aiMatchResults.find(r => r.project_id === b.id)?.match_score || 0;
+      return scoreB - scoreA;
+    }
+    return 0;
   });
 
   // Favorite toggle handler
@@ -183,6 +218,14 @@ export default function HomePage() {
           availableYears={Array.from(new Set(projects.map(p => p.academic_year))).filter(Boolean).sort((a, b) => b - a)}
           selectedYear={selectedYear}
           setSelectedYear={setSelectedYear}
+          resourceFilter={resourceFilter}
+          setResourceFilter={setResourceFilter}
+          onOpenAiMatchModal={() => setIsAiMatchModalOpen(true)}
+          isAiMatchActive={Boolean(aiMatchResults && aiMatchResults.length > 0)}
+          onClearAiMatch={() => {
+            setAiMatchResults(null);
+            setActiveUserProfile(null);
+          }}
           onOpenCreateModal={() => setIsCreateModalOpen(true)}
           totalProjects={projects.length}
         />
@@ -219,18 +262,21 @@ export default function HomePage() {
                 </div>
 
                 {/* Clear Filter Button */}
-                {(selectedFaculty !== null || selectedDept !== null || selectedYear !== null || searchQuery) && (
+                {(selectedFaculty !== null || selectedDept !== null || selectedYear !== null || resourceFilter !== null || searchQuery || aiMatchResults) && (
                   <button
                     onClick={() => {
                       setSelectedFaculty(null);
                       setSelectedDept(null);
                       setSelectedYear(null);
+                      setResourceFilter(null);
                       setSearchQuery('');
+                      setAiMatchResults(null);
+                      setActiveUserProfile(null);
                     }}
                     className="text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors flex items-center space-x-1.5"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
-                    <span>ล้างตัวกรอง</span>
+                    <span>ล้างตัวกรองทั้งหมด</span>
                   </button>
                 )}
               </div>
@@ -246,6 +292,7 @@ export default function HomePage() {
                       onSelect={(p) => setSelectedProject(prev => prev?.id === p.id ? null : p)}
                       isFavorite={favorites.includes(project.id)}
                       onToggleFavorite={handleToggleFavorite}
+                      aiMatchResult={aiMatchResults?.find(r => r.project_id === project.id)}
                     />
                   ))}
                 </div>
@@ -345,6 +392,20 @@ export default function HomePage() {
         departments={departments}
         faculties={faculties}
         onSuccessCreate={handleSuccessCreate}
+      />
+
+      <AiMatchModal
+        isOpen={isAiMatchModalOpen}
+        onClose={() => setIsAiMatchModalOpen(false)}
+        onApplyMatch={(profile, results) => {
+          setActiveUserProfile(profile);
+          setAiMatchResults(results);
+        }}
+        onClearMatch={() => {
+          setActiveUserProfile(null);
+          setAiMatchResults(null);
+        }}
+        isMatchActive={Boolean(aiMatchResults && aiMatchResults.length > 0)}
       />
 
     </div>

@@ -107,3 +107,19 @@ export interface Project {
 }
 
 export type ActiveTab = 'explore' | 'lineage' | 'challenges' | 'analytics' | 'favorites';
+
+export interface AiMatchResult {
+  project_id: string;
+  match_score: number; // 0 - 100
+  match_reason: string;
+  matched_skills?: string[];
+  learning_tips?: string;
+}
+
+export interface UserMatchProfile {
+  query?: string;
+  interest_areas?: string[];
+  current_skills?: string[];
+  target_goal?: 'extend_code' | 'use_dataset' | 'solve_community' | 'general_inspiration';
+  preferred_faculty_id?: string;
+}

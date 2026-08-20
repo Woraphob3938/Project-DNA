@@ -1,5 +1,3 @@
-'use client';
-
 import React from 'react';
 import { 
   GitFork, 
@@ -10,9 +8,10 @@ import {
   Box, 
   ArrowUpRight,
   Layers,
-  GitBranch
+  GitBranch,
+  Sparkles
 } from 'lucide-react';
-import { Project } from '@/types/dna';
+import { Project, AiMatchResult } from '@/types/dna';
 
 interface DnaCardProps {
   project: Project;
@@ -20,6 +19,7 @@ interface DnaCardProps {
   onSelect: (project: Project) => void;
   isFavorite: boolean;
   onToggleFavorite: (projectId: string, e: React.MouseEvent) => void;
+  aiMatchResult?: AiMatchResult;
 }
 
 export const DnaCard: React.FC<DnaCardProps> = ({
@@ -27,7 +27,8 @@ export const DnaCard: React.FC<DnaCardProps> = ({
   isSelected,
   onSelect,
   isFavorite,
-  onToggleFavorite
+  onToggleFavorite,
+  aiMatchResult
 }) => {
   const hasCode = project.assets?.some(a => a.asset_type === 'code_repo') || Boolean(project.dna_card?.repository_url);
   const hasDataset = project.assets?.some(a => a.asset_type === 'dataset');
@@ -73,6 +74,14 @@ export const DnaCard: React.FC<DnaCardProps> = ({
           </span>
         </div>
 
+        {/* Center: AI Match Score Pill (when active) */}
+        {aiMatchResult && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-amber-500 text-slate-950 font-bold text-xs rounded-full shadow-md flex items-center space-x-1 border border-amber-300">
+            <Sparkles className="w-3 h-3 fill-current" />
+            <span>{aiMatchResult.match_score}% Match</span>
+          </div>
+        )}
+
         {/* Top-Right: Favorite Button (Solid, crisp) */}
         <button
           onClick={(e) => onToggleFavorite(project.id, e)}
@@ -103,7 +112,7 @@ export const DnaCard: React.FC<DnaCardProps> = ({
       </div>
 
       {/* Content Area */}
-      <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+      <div className="p-5 flex-1 flex flex-col justify-between space-y-3.5">
         
         {/* Title & Problem */}
         <div className="space-y-2">
@@ -117,10 +126,21 @@ export const DnaCard: React.FC<DnaCardProps> = ({
             {project.title_en}
           </p>
 
-          {/* Problem Statement (Editorial Left-border indent, NO card-in-card) */}
-          <p className="text-xs text-slate-700 leading-relaxed border-l-2 border-amber-500/70 pl-3 py-0.5 line-clamp-2">
-            {project.dna_card?.problem_statement || project.abstract_th}
-          </p>
+          {/* AI Match Reason Banner (if matched) */}
+          {aiMatchResult?.match_reason ? (
+            <div className="p-2.5 bg-amber-50/90 border border-amber-200/80 rounded-xl text-[11px] text-amber-950 flex items-start space-x-1.5 leading-snug">
+              <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold text-amber-900">AI แนะนำ: </span>
+                <span className="text-slate-700">{aiMatchResult.match_reason}</span>
+              </div>
+            </div>
+          ) : (
+            /* Problem Statement (Editorial Left-border indent, NO card-in-card) */
+            <p className="text-xs text-slate-700 leading-relaxed border-l-2 border-amber-500/70 pl-3 py-0.5 line-clamp-2">
+              {project.dna_card?.problem_statement || project.abstract_th}
+            </p>
+          )}
         </div>
 
         {/* Tech Stack Chips */}
