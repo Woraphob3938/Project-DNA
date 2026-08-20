@@ -304,7 +304,7 @@ export default function SubmitProjectPage() {
             <span>KU CSC STUDENT PROJECT REGISTRY</span>
           </div>
           <h1 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-white">
-            ลงทะเบียน DNA โครงงานและองค์ความรู้ (สำหรับนิสิต)
+            เพิ่มโปรเจกต์และองค์ความรู้ (สำหรับนิสิต)
           </h1>
           <p className="text-xs md:text-sm text-slate-300 leading-relaxed font-sans">
             ส่งต่อพิมพ์เขียว ซอร์สโค้ด ชุดข้อมูล และบทเรียนจากโครงงานของคุณ เพื่อให้นิสิตรุ่นน้องนำไปต่อยอด สร้างสายวิวัฒนาการนวัตกรรมที่ไม่สิ้นสุด
@@ -380,7 +380,7 @@ export default function SubmitProjectPage() {
               <CheckCircle2 className="w-7 h-7" />
             </div>
             <h3 className="font-display text-lg font-bold text-emerald-900">
-              ลงทะเบียน DNA โครงงานสำเร็จเรียบร้อย!
+              เพิ่มโปรเจกต์สำเร็จเรียบร้อย!
             </h3>
             <p className="text-xs text-emerald-700">
               โครงงานของคุณถูกบรรจุเข้าสู่คลังองค์ความรู้ มก.ฉกส. และพร้อมให้นิสิตรุ่นน้องนำไปศึกษาและต่อยอดแล้ว
