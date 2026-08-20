@@ -16,8 +16,6 @@ export async function extractDnaWithGemini(rawText: string): Promise<{
   if (isGeminiConfigured) {
     try {
       const genAI = new GoogleGenerativeAI(geminiApiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
       const prompt = `
 คุณเป็นผู้เชี่ยวชาญด้านการวิเคราะห์โครงงานนิสิต (Senior Projects) สำหรับมหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตเฉลิมพระเกียรติ จังหวัดสกลนคร (มก.ฉกส.)
 วิเคราะห์ข้อความ/บทคัดย่อโครงงานต่อไปนี้ และสกัดข้อมูลออกมาเป็น JSON ตามโครงสร้างที่กำหนดเท่านั้น (ห้ามใส่ markdown อื่นนอกเหนือจาก json):
@@ -61,7 +59,22 @@ ${rawText}
 }
 `;
 
-      const result = await model.generateContent(prompt);
+      const modelNames = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+      let result = null;
+      let lastErr = null;
+
+      for (const mName of modelNames) {
+        try {
+          const model = genAI.getGenerativeModel({ model: mName });
+          result = await model.generateContent(prompt);
+          if (result) break;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+
+      if (!result) throw lastErr;
+
       const text = result.response.text();
       const cleanedJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
       return JSON.parse(cleanedJson);
@@ -78,8 +91,6 @@ export async function generateGapAnalysis(projectTitle: string, techStack: strin
   if (isGeminiConfigured) {
     try {
       const genAI = new GoogleGenerativeAI(geminiApiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
       const prompt = `
 วิเคราะห์โครงงาน "${projectTitle}" ที่มี Tech Stack: ${techStack.join(', ')} และปัญหา: "${problem}"
 เพื่อสร้าง 3 ช่องว่างการพัฒนา (Extension Gaps) ให้รุ่นน้องนิสิตนำไปต่อยอดเป็นโครงงานใหม่ได้จริง
@@ -94,7 +105,21 @@ export async function generateGapAnalysis(projectTitle: string, techStack: strin
   }
 ]
 `;
-      const result = await model.generateContent(prompt);
+      const modelNames = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+      let result = null;
+      let lastErr = null;
+
+      for (const mName of modelNames) {
+        try {
+          const model = genAI.getGenerativeModel({ model: mName });
+          result = await model.generateContent(prompt);
+          if (result) break;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+
+      if (!result) throw lastErr;
       const text = result.response.text();
       const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
       return JSON.parse(cleaned);
