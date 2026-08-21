@@ -197,7 +197,7 @@ class DnaService {
 
     this.inMemoryProjects.unshift(project);
 
-    // If Supabase is connected, attempt sync
+    // If Supabase is connected, sync full relational records
     if (isSupabaseConfigured && supabase) {
       try {
         await supabase.from('projects').insert({
@@ -211,6 +211,51 @@ class DnaService {
           department_id: project.department_id,
           cover_image_url: project.cover_image_url
         });
+
+        if (project.dna_card) {
+          await supabase.from('dna_cards').insert({
+            id: 'dna-' + project.id,
+            project_id: project.id,
+            problem_statement: project.dna_card.problem_statement || '',
+            target_users: project.dna_card.target_users || [],
+            tech_stack: project.dna_card.tech_stack || [],
+            key_outcomes: project.dna_card.key_outcomes || [],
+            limitations: project.dna_card.limitations || [],
+            hardware_specs: project.dna_card.hardware_specs || '',
+            dataset_description: project.dna_card.dataset_description || '',
+            repository_url: project.dna_card.repository_url || '',
+            demo_url: project.dna_card.demo_url || '',
+            advisor_name: project.dna_card.advisor_name || '',
+            student_authors: project.dna_card.student_authors || []
+          });
+        }
+
+        if (project.assets && project.assets.length > 0) {
+          const assetRows = project.assets.map((a, i) => ({
+            id: a.id || `asset-${project.id}-${i + 1}`,
+            project_id: project.id,
+            asset_type: a.asset_type,
+            title: a.title,
+            description: a.description || '',
+            resource_url: a.resource_url,
+            file_size: a.file_size || '',
+            license: a.license || 'MIT / Open Academic'
+          }));
+          await supabase.from('reusable_assets').insert(assetRows);
+        }
+
+        if (project.gaps && project.gaps.length > 0) {
+          const gapRows = project.gaps.map((g, i) => ({
+            id: g.id || `gap-${project.id}-${i + 1}`,
+            project_id: project.id,
+            gap_title: g.gap_title,
+            gap_description: g.gap_description,
+            difficulty_level: g.difficulty_level || 'Medium',
+            recommended_tech: g.recommended_tech || [],
+            potential_impact: g.potential_impact
+          }));
+          await supabase.from('extension_gaps').insert(gapRows);
+        }
       } catch (e) {
         console.warn('Supabase insert failed:', e);
       }
