@@ -1,6 +1,25 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
-import { Search, Plus, GraduationCap, Building, Calendar, LogIn, Sparkles, Code, Database, Cpu, GitFork, X } from 'lucide-react';
+import { 
+  Search, 
+  Plus, 
+  GraduationCap, 
+  Building, 
+  Calendar, 
+  LogIn, 
+  Sparkles, 
+  Code, 
+  Database, 
+  Cpu, 
+  GitFork, 
+  X,
+  Filter,
+  RotateCcw,
+  SlidersHorizontal,
+  ChevronDown
+} from 'lucide-react';
 import { Faculty, Department, ActiveTab } from '@/types/dna';
 
 interface HeaderProps {
@@ -52,66 +71,50 @@ export const Header: React.FC<HeaderProps> = ({
     ? departments.filter(d => d.faculty_id === selectedFaculty)
     : departments;
 
+  const hasActiveFilters = Boolean(
+    searchQuery || 
+    selectedFaculty || 
+    selectedDept || 
+    selectedYear || 
+    resourceFilter || 
+    isAiMatchActive
+  );
+
+  const handleResetAllFilters = () => {
+    setSearchQuery('');
+    setSelectedFaculty(null);
+    setSelectedDept(null);
+    if (setSelectedYear) setSelectedYear(null);
+    if (setResourceFilter) setResourceFilter(null);
+    if (onClearAiMatch) onClearAiMatch();
+  };
+
+  const selectedFacultyObj = faculties.find(f => f.id === selectedFaculty);
+  const selectedDeptObj = departments.find(d => d.code === selectedDept || d.id === selectedDept);
+
   return (
-    <header className="bg-white border-b border-slate-200/90 sticky top-0 z-20 px-6 py-4 transition-colors">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <header className="bg-white border-b border-slate-200/90 sticky top-0 z-20 transition-all font-sans">
+      
+      {/* 1. Main Top Brand & Action Bar */}
+      <div className="px-6 py-3.5 max-w-7xl mx-auto flex items-center justify-between gap-4">
         
-        {/* Title & Campus Info */}
+        {/* Title & Campus Branding */}
         <div>
-          <h1 className="font-display text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
-            DNA : คลังองค์ความรู้ & ต่อยอดโครงงานนิสิต
+          <h1 className="font-display text-lg md:text-xl font-bold text-slate-900 tracking-tight flex items-center space-x-2">
+            <span>DNA : คลังองค์ความรู้ & ต่อยอดโครงงานนิสิต</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-1 font-sans">
+          <p className="text-[11px] text-slate-500 font-sans">
             มหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตเฉลิมพระเกียรติ จังหวัดสกลนคร (KU CSC)
           </p>
         </div>
 
-        {/* Search Bar & Action Buttons */}
-        <div className="flex items-center space-x-2.5 w-full md:w-auto justify-end">
+        {/* Global Navigation Actions */}
+        <div className="flex items-center space-x-2 shrink-0">
           
-          {/* Search Input (Only on explore / favorites tab) */}
-          {showSearchAndFilters && (
-            <div className="relative flex-1 md:w-72 lg:w-80">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="ค้นหาโครงงาน: ตรวจสอบผ้าคราม, โดรนเกษตร..."
-                className="w-full pl-10 pr-9 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 focus:bg-white text-slate-800 placeholder-slate-400 font-sans transition-colors"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 bg-slate-200 hover:bg-slate-300 rounded-full w-5 h-5 flex items-center justify-center transition-colors"
-                  aria-label="Clear search"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* AI Matchmaker Trigger Button */}
-          {showSearchAndFilters && onOpenAiMatchModal && (
-            <button
-              onClick={onOpenAiMatchModal}
-              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl font-bold text-xs shadow-xs transition-colors shrink-0 ${
-                isAiMatchActive
-                  ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400'
-                  : 'bg-slate-950 hover:bg-black text-amber-400'
-              }`}
-              title="ให้ Gemini AI ช่วยจับคู่โครงงานที่เหมาะสมกับคุณ"
-            >
-              <Sparkles className="w-3.5 h-3.5 fill-current" />
-              <span className="hidden sm:inline">{isAiMatchActive ? 'AI Match เปิดอยู่' : '⚡ AI ช่วยคัดกรอง'}</span>
-            </button>
-          )}
-
-          {/* Submit / New Project DNA Button */}
+          {/* Submit Project Button */}
           <Link
             href="/submit"
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition-colors shrink-0"
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition-all shrink-0"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span className="hidden sm:inline">เพิ่มโปรเจกต์</span>
@@ -120,212 +123,262 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Login Button */}
           <Link
             href="/login"
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition-colors shrink-0 border border-slate-200"
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 font-semibold text-xs rounded-xl transition-all shrink-0 border border-slate-200/80"
           >
-            <LogIn className="w-3.5 h-3.5 text-slate-700" />
+            <LogIn className="w-3.5 h-3.5 text-slate-600" />
             <span className="hidden sm:inline">เข้าสู่ระบบ</span>
           </Link>
         </div>
       </div>
 
-      {/* Filter Bar (Only visible on explore / favorites tab) */}
+      {/* 2. Compact Unified Search & Filter Command Bar (Only on Explore/Favorites) */}
       {showSearchAndFilters && (
-        <div className="max-w-7xl mx-auto mt-3.5 pt-3 border-t border-slate-100 space-y-2 text-xs">
-          
-          {/* Faculty Pills (4 คณะ) */}
-          <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 max-w-full">
-            <span className="text-slate-400 font-medium flex items-center mr-1 shrink-0">
-              <GraduationCap className="w-3.5 h-3.5 mr-1" /> คณะ:
-            </span>
-            <button
-              onClick={() => {
-                setSelectedFaculty(null);
-                setSelectedDept(null);
-              }}
-              className={`px-3 py-1 rounded-lg font-medium transition-colors shrink-0 ${
-                selectedFaculty === null
-                  ? 'bg-slate-900 text-white font-bold'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              ทุกคณะ
-            </button>
-            {faculties.map((fac) => {
-              const isSelected = selectedFaculty === fac.id;
-              return (
+        <div className="px-6 py-2.5 bg-slate-50/80 border-t border-slate-200/70">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2.5">
+            
+            {/* Left: Sleek Search Input */}
+            <div className="relative flex-1 min-w-[240px] max-w-md">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="ค้นหาชื่อโครงงาน, ปัญหา, Tech Stack, หรือคำสำคัญ..."
+                className="w-full pl-9.5 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 placeholder-slate-400 shadow-2xs transition-all"
+              />
+              {searchQuery && (
                 <button
-                  key={fac.id}
-                  onClick={() => {
-                    setSelectedFaculty(isSelected ? null : fac.id);
-                    setSelectedDept(null);
-                  }}
-                  className={`px-3 py-1 rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 flex items-center space-x-1.5 ${
-                    isSelected
-                      ? 'bg-amber-500 text-slate-950 font-bold ring-1 ring-amber-400'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-full w-4.5 h-4.5 flex items-center justify-center text-[10px] transition-colors"
+                  aria-label="Clear search"
                 >
-                  <span>{fac.name_th}</span>
-                  <span className="text-[10px] opacity-75 font-mono">({fac.short_name})</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Department / Major Pills */}
-          <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 max-w-full">
-            <span className="text-slate-400 font-medium flex items-center mr-1 shrink-0">
-              <Building className="w-3.5 h-3.5 mr-1" /> สาขาวิชา:
-            </span>
-            <button
-              onClick={() => setSelectedDept(null)}
-              className={`px-2.5 py-0.5 rounded-md text-[11px] font-medium transition-colors shrink-0 ${
-                selectedDept === null
-                  ? 'bg-slate-800 text-amber-300 font-bold'
-                  : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              ทุกสาขา
-            </button>
-            {availableDepartments.map((dept) => {
-              const isSelected = selectedDept === dept.code;
-              return (
-                <button
-                  key={dept.id}
-                  onClick={() => setSelectedDept(isSelected ? null : dept.code)}
-                  className={`px-2.5 py-0.5 rounded-md text-[11px] font-medium transition-colors whitespace-nowrap shrink-0 border ${
-                    isSelected
-                      ? 'bg-slate-900 text-amber-300 border-slate-900 font-bold'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {dept.code} - {dept.name_th}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Year (ปีการศึกษา พ.ศ.) Pills */}
-          {availableYears && availableYears.length > 0 && setSelectedYear && (
-            <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 max-w-full">
-              <span className="text-slate-400 font-medium flex items-center mr-1 shrink-0">
-                <Calendar className="w-3.5 h-3.5 mr-1" /> ปี พ.ศ.:
-              </span>
-              <button
-                onClick={() => setSelectedYear(null)}
-                className={`px-2.5 py-0.5 rounded-md text-[11px] font-medium transition-colors shrink-0 ${
-                  selectedYear === null
-                    ? 'bg-slate-800 text-amber-300 font-bold'
-                    : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                ทุกปี
-              </button>
-              {availableYears.map((yr) => {
-                const isSelected = selectedYear === yr;
-                return (
-                  <button
-                    key={yr}
-                    onClick={() => setSelectedYear(isSelected ? null : yr)}
-                    className={`px-2.5 py-0.5 rounded-md text-[11px] font-medium transition-colors whitespace-nowrap shrink-0 border ${
-                      isSelected
-                        ? 'bg-amber-500 text-slate-950 border-amber-500 font-bold'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    ปี {yr}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Resource Filter Pills */}
-          {setResourceFilter && (
-            <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 max-w-full pt-0.5">
-              <span className="text-slate-400 font-medium flex items-center mr-1 shrink-0">
-                <Code className="w-3.5 h-3.5 mr-1" /> ทรัพยากร:
-              </span>
-              <button
-                onClick={() => setResourceFilter(null)}
-                className={`px-2.5 py-0.5 rounded-md text-[11px] font-medium transition-colors shrink-0 ${
-                  resourceFilter === null
-                    ? 'bg-slate-800 text-amber-300 font-bold'
-                    : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                ทั้งหมด
-              </button>
-              <button
-                onClick={() => setResourceFilter(resourceFilter === 'code' ? null : 'code')}
-                className={`px-2.5 py-0.5 rounded-md text-[11px] font-medium transition-colors whitespace-nowrap shrink-0 border flex items-center space-x-1 ${
-                  resourceFilter === 'code'
-                    ? 'bg-slate-900 text-amber-400 border-slate-900 font-bold'
-                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                <Code className="w-3 h-3 text-amber-600" />
-                <span>มี Source Code</span>
-              </button>
-              <button
-                onClick={() => setResourceFilter(resourceFilter === 'dataset' ? null : 'dataset')}
-                className={`px-2.5 py-0.5 rounded-md text-[11px] font-medium transition-colors whitespace-nowrap shrink-0 border flex items-center space-x-1 ${
-                  resourceFilter === 'dataset'
-                    ? 'bg-slate-900 text-emerald-400 border-slate-900 font-bold'
-                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                <Database className="w-3 h-3 text-emerald-600" />
-                <span>มี Dataset</span>
-              </button>
-              <button
-                onClick={() => setResourceFilter(resourceFilter === 'model' ? null : 'model')}
-                className={`px-2.5 py-0.5 rounded-md text-[11px] font-medium transition-colors whitespace-nowrap shrink-0 border flex items-center space-x-1 ${
-                  resourceFilter === 'model'
-                    ? 'bg-slate-900 text-purple-400 border-slate-900 font-bold'
-                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                <Cpu className="w-3 h-3 text-purple-600" />
-                <span>มี AI Model</span>
-              </button>
-              <button
-                onClick={() => setResourceFilter(resourceFilter === 'lineage' ? null : 'lineage')}
-                className={`px-2.5 py-0.5 rounded-md text-[11px] font-medium transition-colors whitespace-nowrap shrink-0 border flex items-center space-x-1 ${
-                  resourceFilter === 'lineage'
-                    ? 'bg-amber-500 text-slate-950 border-amber-500 font-bold'
-                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                <GitFork className="w-3 h-3" />
-                <span>มีสายต่อยอด</span>
-              </button>
-            </div>
-          )}
-
-          {/* Active AI Matcher Status Bar */}
-          {isAiMatchActive && (
-            <div className="flex items-center justify-between bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/5 border border-amber-300/80 px-3.5 py-2 rounded-xl text-xs text-amber-950 animate-in fade-in">
-              <div className="flex items-center space-x-2 font-medium">
-                <Sparkles className="w-4 h-4 text-amber-600 shrink-0 fill-current" />
-                <span>
-                  <strong>AI Match Active:</strong> กำลังแสดงผลการจับคู่และคัดกรองโดย Gemini AI (เรียงตามคะแนนความเหมาะสม)
-                </span>
-              </div>
-              {onClearAiMatch && (
-                <button
-                  onClick={onClearAiMatch}
-                  className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-800 text-[11px] font-bold rounded-lg border border-slate-200 transition-colors flex items-center space-x-1 shadow-2xs"
-                >
-                  <X className="w-3 h-3" />
-                  <span>ล้างการจับคู่ AI</span>
+                  ✕
                 </button>
               )}
+            </div>
+
+            {/* Right: Compact Filter Dropdowns & AI Matcher Button */}
+            <div className="flex items-center flex-wrap gap-2">
+              
+              {/* Faculty Dropdown */}
+              <div className="relative">
+                <select
+                  value={selectedFaculty || ''}
+                  onChange={(e) => {
+                    setSelectedFaculty(e.target.value || null);
+                    setSelectedDept(null);
+                  }}
+                  className={`text-xs pl-3 pr-7 py-2 rounded-xl border font-medium bg-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs transition-all ${
+                    selectedFaculty
+                      ? 'border-amber-500 text-slate-950 bg-amber-50/50 font-bold ring-1 ring-amber-400/50'
+                      : 'border-slate-200 text-slate-700 hover:border-slate-300'
+                  }`}
+                >
+                  <option value="">🏫 ทุกคณะ</option>
+                  {faculties.map((fac) => (
+                    <option key={fac.id} value={fac.id}>
+                      {fac.short_name} - {fac.name_th}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+
+              {/* Department Dropdown */}
+              <div className="relative">
+                <select
+                  value={selectedDept || ''}
+                  onChange={(e) => setSelectedDept(e.target.value || null)}
+                  className={`text-xs pl-3 pr-7 py-2 rounded-xl border font-medium bg-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs transition-all ${
+                    selectedDept
+                      ? 'border-amber-500 text-slate-950 bg-amber-50/50 font-bold ring-1 ring-amber-400/50'
+                      : 'border-slate-200 text-slate-700 hover:border-slate-300'
+                  }`}
+                >
+                  <option value="">🎓 ทุกสาขาวิชา</option>
+                  {availableDepartments.map((dept) => (
+                    <option key={dept.id} value={dept.code}>
+                      {dept.code} - {dept.name_th}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+
+              {/* Year Dropdown */}
+              {availableYears && availableYears.length > 0 && setSelectedYear && (
+                <div className="relative">
+                  <select
+                    value={selectedYear ? String(selectedYear) : ''}
+                    onChange={(e) => setSelectedYear(e.target.value ? Number(e.target.value) : null)}
+                    className={`text-xs pl-3 pr-7 py-2 rounded-xl border font-medium bg-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs transition-all ${
+                      selectedYear
+                        ? 'border-amber-500 text-slate-950 bg-amber-50/50 font-bold ring-1 ring-amber-400/50'
+                        : 'border-slate-200 text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <option value="">📅 ทุกปีการศึกษา</option>
+                    {availableYears.map((yr) => (
+                      <option key={yr} value={yr}>
+                        ปี พ.ศ. {yr}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              )}
+
+              {/* Resource Filter Dropdown */}
+              {setResourceFilter && (
+                <div className="relative">
+                  <select
+                    value={resourceFilter || ''}
+                    onChange={(e) => setResourceFilter(e.target.value || null)}
+                    className={`text-xs pl-3 pr-7 py-2 rounded-xl border font-medium bg-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs transition-all ${
+                      resourceFilter
+                        ? 'border-amber-500 text-slate-950 bg-amber-50/50 font-bold ring-1 ring-amber-400/50'
+                        : 'border-slate-200 text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <option value="">💾 ทรัพยากรทั้งหมด</option>
+                    <option value="code">💻 มี Source Code</option>
+                    <option value="dataset">📊 มี Dataset</option>
+                    <option value="model">🤖 มี AI Model</option>
+                    <option value="lineage">🌿 มีสายต่อยอด</option>
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              )}
+
+              {/* AI Matchmaker Trigger Button */}
+              {onOpenAiMatchModal && (
+                <button
+                  onClick={onOpenAiMatchModal}
+                  className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl font-bold text-xs shadow-2xs transition-all shrink-0 ${
+                    isAiMatchActive
+                      ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400'
+                      : 'bg-slate-950 hover:bg-black text-amber-400 active:scale-98'
+                  }`}
+                  title="เปิดหน้าต่างค้นหาและจับคู่ด้วย AI"
+                >
+                  <Sparkles className="w-3.5 h-3.5 fill-current" />
+                  <span>{isAiMatchActive ? 'AI Match เปิดอยู่' : '⚡ AI ช่วยค้นหา'}</span>
+                </button>
+              )}
+
+              {/* Reset All Filters Button (Only shown when filters are active) */}
+              {hasActiveFilters && (
+                <button
+                  onClick={handleResetAllFilters}
+                  className="px-2.5 py-2 bg-slate-200/80 hover:bg-red-50 hover:text-red-700 text-slate-600 rounded-xl text-xs font-semibold flex items-center space-x-1 transition-colors shadow-2xs"
+                  title="ล้างตัวกรองทั้งหมด"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span className="hidden xl:inline">ล้างตัวกรอง</span>
+                </button>
+              )}
+
+            </div>
+          </div>
+
+          {/* 3. Active Filter Badges Bar (Appears dynamically only when filters are active) */}
+          {hasActiveFilters && (
+            <div className="max-w-7xl mx-auto mt-2 pt-2 border-t border-slate-200/60 flex items-center flex-wrap gap-1.5 text-[11px] animate-in fade-in duration-150">
+              <span className="text-slate-400 font-medium mr-1 flex items-center">
+                <Filter className="w-3 h-3 mr-1 text-slate-500" /> ตัวกรองที่เปิดอยู่:
+              </span>
+
+              {selectedFacultyObj && (
+                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-lg bg-amber-100 text-amber-950 font-medium border border-amber-300">
+                  <span>คณะ: {selectedFacultyObj.short_name}</span>
+                  <button 
+                    onClick={() => { setSelectedFaculty(null); setSelectedDept(null); }}
+                    className="hover:text-red-600 font-bold ml-1"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+
+              {selectedDeptObj && (
+                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-lg bg-amber-100 text-amber-950 font-medium border border-amber-300">
+                  <span>สาขา: {selectedDeptObj.code}</span>
+                  <button 
+                    onClick={() => setSelectedDept(null)}
+                    className="hover:text-red-600 font-bold ml-1"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+
+              {selectedYear && setSelectedYear && (
+                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-lg bg-slate-200 text-slate-800 font-medium border border-slate-300">
+                  <span>ปี {selectedYear}</span>
+                  <button 
+                    onClick={() => setSelectedYear(null)}
+                    className="hover:text-red-600 font-bold ml-1"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+
+              {resourceFilter && setResourceFilter && (
+                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-lg bg-slate-200 text-slate-800 font-medium border border-slate-300">
+                  <span>ทรัพยากร: {
+                    resourceFilter === 'code' ? 'Code' :
+                    resourceFilter === 'dataset' ? 'Dataset' :
+                    resourceFilter === 'model' ? 'AI Model' : 'Lineage'
+                  }</span>
+                  <button 
+                    onClick={() => setResourceFilter(null)}
+                    className="hover:text-red-600 font-bold ml-1"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+
+              {isAiMatchActive && (
+                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-lg bg-slate-900 text-amber-400 font-bold border border-slate-900">
+                  <Sparkles className="w-3 h-3 fill-current" />
+                  <span>AI Semantic Match</span>
+                  {onClearAiMatch && (
+                    <button 
+                      onClick={onClearAiMatch}
+                      className="hover:text-red-400 font-bold ml-1"
+                    >
+                      ×
+                    </button>
+                  )}
+                </span>
+              )}
+
+              {searchQuery && (
+                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-lg bg-white text-slate-700 font-medium border border-slate-200 shadow-2xs">
+                  <span>ค้นหา: &quot;{searchQuery}&quot;</span>
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="hover:text-red-600 font-bold ml-1"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+
+              <button
+                onClick={handleResetAllFilters}
+                className="text-[11px] text-red-600 hover:text-red-700 font-semibold ml-auto hover:underline"
+              >
+                ล้างทั้งหมด
+              </button>
             </div>
           )}
 
         </div>
       )}
+
     </header>
   );
 };
