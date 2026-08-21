@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Header } from '@/components/layout/Header';
-import { Sidebar } from '@/components/layout/Sidebar';
-import { DnaCard } from '@/components/projects/DnaCard';
+import { 
+  DnaCard 
+} from '@/components/projects/DnaCard';
 import { ProjectDetailDrawer } from '@/components/projects/ProjectDetailDrawer';
 import { LineageVisualizer } from '@/components/lineage/LineageVisualizer';
 import { ChallengesHub } from '@/components/challenges/ChallengesHub';
@@ -12,31 +12,33 @@ import { InceptionStudioModal } from '@/components/projects/InceptionStudioModal
 import { QuickResourceModal } from '@/components/projects/QuickResourceModal';
 import { CreateDnaCardModal } from '@/components/ingestion/CreateDnaCardModal';
 import { AiMatchModal } from '@/components/discovery/AiMatchModal';
+import { Sidebar } from '@/components/layout/Sidebar';
+import { Header } from '@/components/layout/Header';
 
+import { Project, Faculty, Department, Challenge, ProjectLineageEdge, ActiveTab, UserMatchProfile, AiMatchResult } from '@/types/dna';
 import { dnaService } from '@/lib/dnaService';
 import { 
-  Project, 
-  Faculty, 
-  Department, 
-  ProjectLineageEdge, 
-  Challenge, 
-  ActiveTab,
-  AiMatchResult,
-  UserMatchProfile
-} from '@/types/dna';
-import { RefreshCw, Search, BookmarkCheck, Layers, Sparkles } from 'lucide-react';
+  Sparkles, 
+  RefreshCw, 
+  Search, 
+  Layers, 
+  BookmarkCheck,
+  X
+} from 'lucide-react';
 
-export default function HomePage() {
-  // State management
+export default function Home() {
+  // Navigation State
   const [activeTab, setActiveTab] = useState<ActiveTab>('explore');
-  const [projects, setProjects] = useState<Project[]>(() => dnaService.getInitialProjects());
-  const [faculties, setFaculties] = useState<Faculty[]>(() => dnaService.getInitialFaculties());
-  const [departments, setDepartments] = useState<Department[]>(() => dnaService.getInitialDepartments());
-  const [lineages, setLineages] = useState<ProjectLineageEdge[]>(() => dnaService.getInitialLineages());
-  const [challenges, setChallenges] = useState<Challenge[]>(() => dnaService.getInitialChallenges());
-  const [loading, setLoading] = useState(false);
 
-  // Filters
+  // Master Data State
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [faculties, setFaculties] = useState<Faculty[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [lineages, setLineages] = useState<ProjectLineageEdge[]>([]);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFaculty, setSelectedFaculty] = useState<string | null>(null);
   const [selectedDept, setSelectedDept] = useState<string | null>(null);
@@ -44,9 +46,11 @@ export default function HomePage() {
   const [resourceFilter, setResourceFilter] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
 
-  // AI Matching States
+  // AI Matchmaker State
   const [isAiMatchModalOpen, setIsAiMatchModalOpen] = useState(false);
   const [aiMatchResults, setAiMatchResults] = useState<AiMatchResult[] | null>(null);
+  const [aiCuratedSummary, setAiCuratedSummary] = useState<string | null>(null);
+  const [isAiSearching, setIsAiSearching] = useState(false);
   const [activeUserProfile, setActiveUserProfile] = useState<UserMatchProfile | null>(null);
 
   // Selected Project for Drawer & Modals
@@ -108,6 +112,39 @@ export default function HomePage() {
     }
   }, [favorites]);
 
+  // Direct AI Search Handler
+  const handleTriggerAiSearch = async (queryText: string) => {
+    const q = queryText.trim();
+    if (!q) return;
+
+    setIsAiSearching(true);
+    const profile: UserMatchProfile = {
+      query: q,
+      interest_areas: [],
+      current_skills: [],
+      target_goal: 'general_inspiration'
+    };
+
+    try {
+      const res = await fetch('/api/ai/match-filter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile })
+      });
+
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setAiMatchResults(data.data);
+        setAiCuratedSummary(data.summary || `AI คัดกรองและจับคู่โครงงานที่สอดคล้องกับ "${q}" พบโครงงานที่มีความเหมาะสมสูงพร้อมพิมพ์เขียวให้ศึกษา`);
+        setActiveUserProfile(profile);
+      }
+    } catch (err) {
+      console.warn('AI search trigger error:', err);
+    } finally {
+      setIsAiSearching(false);
+    }
+  };
+
   // Filter and Rank projects based on Search, Faculty, Dept, Year, Resources, and AI Match Results
   const filteredProjects = projects.filter((p) => {
     // Favorites tab filter
@@ -148,8 +185,8 @@ export default function HomePage() {
       if (!hasLineage) return false;
     }
 
-    // Search query filter
-    if (searchQuery.trim()) {
+    // Search query filter (Only applies manual substring search when AI match is NOT active)
+    if (!aiMatchResults && searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchTitleTh = p.title_th?.toLowerCase().includes(q);
       const matchTitleEn = p.title_en?.toLowerCase().includes(q);
@@ -204,11 +241,13 @@ export default function HomePage() {
       {/* 2. Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         
-        {/* Top Sticky Header */}
+        {/* Top Sticky Header with Unified Search Bar & Dropdown Filters */}
         <Header
           activeTab={activeTab}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
+          onTriggerAiSearch={handleTriggerAiSearch}
+          isAiSearching={isAiSearching}
           faculties={faculties}
           selectedFaculty={selectedFaculty}
           setSelectedFaculty={setSelectedFaculty}
@@ -224,6 +263,7 @@ export default function HomePage() {
           isAiMatchActive={Boolean(aiMatchResults && aiMatchResults.length > 0)}
           onClearAiMatch={() => {
             setAiMatchResults(null);
+            setAiCuratedSummary(null);
             setActiveUserProfile(null);
           }}
           onOpenCreateModal={() => setIsCreateModalOpen(true)}
@@ -237,6 +277,49 @@ export default function HomePage() {
           {(activeTab === 'explore' || activeTab === 'favorites') && (
             <div className="max-w-7xl mx-auto space-y-6">
               
+              {/* AI Curated Knowledge & Blueprint Summary Card (When AI Match/Search is Active) */}
+              {aiMatchResults && aiMatchResults.length > 0 && (
+                <div className="p-5 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white rounded-2xl border border-amber-500/40 shadow-soft space-y-3 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2 text-amber-400 text-xs font-bold font-mono">
+                      <Sparkles className="w-4 h-4 fill-current" />
+                      <span>AI CURATED RESEARCH DNA INSIGHT</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setAiMatchResults(null);
+                        setAiCuratedSummary(null);
+                        setActiveUserProfile(null);
+                      }}
+                      className="text-xs text-slate-400 hover:text-white flex items-center space-x-1 transition-colors px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>ล้างผลการวิเคราะห์</span>
+                    </button>
+                  </div>
+
+                  <p className="text-xs md:text-sm text-slate-200 leading-relaxed font-sans">
+                    {aiCuratedSummary || `AI ได้ทำการวิเคราะห์และคัดกรองพิมพ์เขียวโครงงานที่เกี่ยวข้องกับโจทย์ที่คุณต้องการ เรียงลำดับตามความสอดคล้องของเทคโนโลยีและผลลัพธ์:`}
+                  </p>
+
+                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between flex-wrap gap-2 text-xs">
+                    <div className="flex items-center space-x-1.5 text-[11px] text-amber-300 font-mono">
+                      <span>🎯 อันดับ 1 ความเหมาะสมสูงสุด:</span>
+                      <strong className="text-white">
+                        {projects.find(p => p.id === aiMatchResults[0]?.project_id)?.title_th || `โครงงาน ID: ${aiMatchResults[0]?.project_id}`}
+                      </strong>
+                      <span className="px-1.5 py-0.5 bg-amber-500 text-slate-950 rounded font-bold">
+                        {aiMatchResults[0]?.match_score}% Match
+                      </span>
+                    </div>
+
+                    <div className="text-[11px] text-slate-400">
+                      💡 คลิกที่การ์ดโครงงานเพื่อดูพิมพ์เขียว DNA และดาวน์โหลดทรัพยากร
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Section Header */}
               <div className="flex items-center justify-between">
                 <div>
@@ -271,9 +354,10 @@ export default function HomePage() {
                       setResourceFilter(null);
                       setSearchQuery('');
                       setAiMatchResults(null);
+                      setAiCuratedSummary(null);
                       setActiveUserProfile(null);
                     }}
-                    className="text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors flex items-center space-x-1.5"
+                    className="text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors flex items-center space-x-1.5 shadow-2xs"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                     <span>ล้างตัวกรองทั้งหมด</span>
@@ -281,9 +365,9 @@ export default function HomePage() {
                 )}
               </div>
 
-              {/* Grid of DNA Cards (Fixed columns so card widths never jump) */}
+              {/* Grid of Compact DNA Cards */}
               {filteredProjects.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                   {filteredProjects.map((project) => (
                     <DnaCard
                       key={project.id}
@@ -311,6 +395,8 @@ export default function HomePage() {
                       setSelectedDept(null);
                       setSelectedYear(null);
                       setSearchQuery('');
+                      setAiMatchResults(null);
+                      setAiCuratedSummary(null);
                     }}
                     className="px-4 py-2 bg-slate-900 text-amber-400 text-xs font-bold rounded-lg transition-colors hover:bg-slate-800"
                   >
@@ -318,66 +404,91 @@ export default function HomePage() {
                   </button>
                 </div>
               )}
+
             </div>
           )}
 
-          {/* TAB 2: Project Lineage Visualizer */}
+          {/* TAB 2: Visual Lineage Graph Tree */}
           {activeTab === 'lineage' && (
-            <LineageVisualizer
-              projects={projects}
-              lineages={lineages}
-              onSelectProject={(p) => {
-                setSelectedProject(p);
-                setActiveTab('explore');
-              }}
-              onOpenInceptionStudio={(p) => setInceptionProject(p)}
-            />
+            <div className="max-w-7xl mx-auto space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-display text-xl font-bold text-slate-900">สายวิวัฒนาการและการต่อยอด (Project Lineage)</h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    สำรวจความเชื่อมโยงของงานวิจัยจากรุ่นสู่รุ่น เห็นทิศทางการต่อยอดข้ามสาขาวิชาใน มก.ฉกส.
+                  </p>
+                </div>
+              </div>
+
+              <LineageVisualizer
+                projects={projects}
+                lineages={lineages}
+                onSelectProject={(project) => setSelectedProject(project)}
+                onOpenInceptionStudio={(project) => setInceptionProject(project)}
+              />
+            </div>
           )}
 
-          {/* TAB 3: Real-World Challenges & Matching */}
+          {/* TAB 3: Community & Regional Challenges Hub */}
           {activeTab === 'challenges' && (
-            <ChallengesHub
-              challenges={challenges}
-              projects={projects}
-              onSelectProject={(p) => {
-                setSelectedProject(p);
-                setActiveTab('explore');
-              }}
-            />
+            <div className="max-w-7xl mx-auto space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-display text-xl font-bold text-slate-900">โจทย์จริงจากชุมชนและอุตสาหกรรม (Real-world Challenges)</h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    รับโจทย์ปัญหาจริงจาก จ.สกลนคร และกลุ่มผู้ประกอบการ เพื่อนำไปทำเป็นโครงงานที่สร้างผลกระทบจริง
+                  </p>
+                </div>
+              </div>
+
+              <ChallengesHub
+                challenges={challenges}
+                projects={projects}
+                onSelectProject={(project) => setSelectedProject(project)}
+              />
+            </div>
           )}
 
-          {/* TAB 4: Project & Knowledge Analytics */}
+          {/* TAB 4: Analytics Dashboard */}
           {activeTab === 'analytics' && (
-            <ProjectAnalytics
-              projects={projects}
-              faculties={faculties}
-              challenges={challenges}
-            />
+            <div className="max-w-7xl mx-auto space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-display text-xl font-bold text-slate-900">สถิติและผลกระทบของคลังโครงงาน (Analytics)</h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    ภาพรวมความก้าวหน้า ทรัพยากรที่เปิดให้ดาวน์โหลด และอัตราการต่อยอดงานวิจัย
+                  </p>
+                </div>
+              </div>
+
+              <ProjectAnalytics 
+                projects={projects} 
+                faculties={faculties}
+                challenges={challenges}
+              />
+            </div>
           )}
 
         </main>
       </div>
 
-      {/* 3. Right-Side Detail Drawer */}
+      {/* 3. Detail Drawer Component */}
       {selectedProject && (
         <ProjectDetailDrawer
           project={selectedProject}
           onClose={() => setSelectedProject(null)}
-          onOpenQuickModal={(p) => setQuickModalProject(p)}
-          onOpenInceptionStudio={(p) => setInceptionProject(p)}
-          onViewLineage={(p) => setActiveTab('lineage')}
           isFavorite={favorites.includes(selectedProject.id)}
           onToggleFavorite={(id) => handleToggleFavorite(id)}
+          onOpenInceptionStudio={(project) => setInceptionProject(project)}
+          onOpenQuickModal={(project) => setQuickModalProject(project)}
+          onViewLineage={(project) => {
+            setSelectedProject(project);
+            setActiveTab('lineage');
+          }}
         />
       )}
 
-      {/* 4. Modals */}
-      <QuickResourceModal
-        project={quickModalProject}
-        isOpen={Boolean(quickModalProject)}
-        onClose={() => setQuickModalProject(null)}
-      />
-
+      {/* 4. Inception Studio Modal (ต่อยอดโครงงาน) */}
       <InceptionStudioModal
         parentProject={inceptionProject}
         challenges={challenges}
@@ -386,6 +497,14 @@ export default function HomePage() {
         onSuccessCreate={handleSuccessCreate}
       />
 
+      {/* 5. Quick Resource Modal */}
+      <QuickResourceModal
+        project={quickModalProject}
+        isOpen={Boolean(quickModalProject)}
+        onClose={() => setQuickModalProject(null)}
+      />
+
+      {/* 6. Create Project Modal */}
       <CreateDnaCardModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
@@ -394,16 +513,21 @@ export default function HomePage() {
         onSuccessCreate={handleSuccessCreate}
       />
 
+      {/* 7. AI Matchmaker Filter Modal */}
       <AiMatchModal
         isOpen={isAiMatchModalOpen}
         onClose={() => setIsAiMatchModalOpen(false)}
         onApplyMatch={(profile, results) => {
           setActiveUserProfile(profile);
           setAiMatchResults(results);
+          if (profile.query) {
+            setAiCuratedSummary(`AI ได้ทำการวิเคราะห์และคัดกรองพิมพ์เขียวโครงงานที่เกี่ยวข้องกับ "${profile.query}" เรียงลำดับตามความสอดคล้องของเทคโนโลยีและพิมพ์เขียว`);
+          }
         }}
         onClearMatch={() => {
-          setActiveUserProfile(null);
           setAiMatchResults(null);
+          setAiCuratedSummary(null);
+          setActiveUserProfile(null);
         }}
         isMatchActive={Boolean(aiMatchResults && aiMatchResults.length > 0)}
       />

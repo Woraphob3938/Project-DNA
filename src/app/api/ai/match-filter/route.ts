@@ -12,11 +12,12 @@ export async function POST(req: NextRequest) {
       ? providedProjects 
       : await dnaService.getProjects();
 
-    const rankedResults = await rankProjectsWithAi(profile || {}, candidateProjects);
+    const output = await rankProjectsWithAi(profile || {}, candidateProjects);
 
     return NextResponse.json({
       success: true,
-      data: rankedResults
+      data: output.results || output,
+      summary: output.curated_summary || ''
     });
   } catch (error: any) {
     console.error('API /api/ai/match-filter error:', error);
