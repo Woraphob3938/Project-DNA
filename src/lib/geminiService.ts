@@ -59,7 +59,7 @@ ${rawText}
 }
 `;
 
-      const modelNames = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+      const modelNames = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-pro'];
       let result = null;
       let lastErr = null;
 
@@ -105,7 +105,7 @@ export async function generateGapAnalysis(projectTitle: string, techStack: strin
   }
 ]
 `;
-      const modelNames = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+      const modelNames = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-pro'];
       let result = null;
       let lastErr = null;
 
@@ -307,7 +307,7 @@ ${JSON.stringify(projectSummaries, null, 2)}
 ]
 `;
 
-      const modelNames = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+      const modelNames = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-pro'];
       let result = null;
       let lastErr = null;
 
