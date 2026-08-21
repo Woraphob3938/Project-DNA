@@ -73,7 +73,7 @@ export const AiMatchModal: React.FC<AiMatchModalProps> = ({
     setIsCalculating(true);
     setCalcStep(1);
     setCalcProgress(15);
-    setCalculationLogs([`[INIT] กำลังส่งโจทย์: "${activeQuery.slice(0, 45)}..." สู่ Gemini Semantic Engine`]);
+    setCalculationLogs([`[INIT] กำลังส่งโจทย์: "${activeQuery.slice(0, 45)}..." สู่ระบบ AI ประมวลผลคำนวณโครงงาน`]);
 
     const profile: UserMatchProfile = {
       query: activeQuery,
@@ -88,7 +88,7 @@ export const AiMatchModal: React.FC<AiMatchModalProps> = ({
       setCalcProgress(45);
       setCalculationLogs(prev => [
         ...prev,
-        '[SCAN] กำลังสแกนพิมพ์เขียว DNA และเปรียบเทียบ Tech Stack โครงงานบน Supabase Cloud...'
+        '[SCAN] กำลังสแกนพิมพ์เขียว DNA และเปรียบเทียบ Tech Stack โครงงานบนฐานข้อมูล...'
       ]);
     }, 450);
 
@@ -97,7 +97,7 @@ export const AiMatchModal: React.FC<AiMatchModalProps> = ({
       setCalcProgress(78);
       setCalculationLogs(prev => [
         ...prev,
-        '[VECTOR] กำลังคำนวณคะแนน Semantic Match Score และสร้างคำแนะนำการต่อยอด...'
+        '[VECTOR] กำลังคำนวณคะแนน Match Score และสร้างคำแนะนำการต่อยอด...'
       ]);
     }, 900);
 
@@ -131,7 +131,7 @@ export const AiMatchModal: React.FC<AiMatchModalProps> = ({
       setCalcProgress(100);
       setCalculationLogs(prev => [
         ...prev,
-        '[FALLBACK] ประมวลผลผ่าน Smart Heuristic Matcher สำเร็จเรียบร้อย'
+        '[FALLBACK] ประมวลผลการคำนวณโครงงานเสร็จสิ้นเรียบร้อย'
       ]);
       setCalcResults([]);
     }
@@ -173,7 +173,7 @@ export const AiMatchModal: React.FC<AiMatchModalProps> = ({
                 <span>⚡ AI Semantic Search & Matchmaker</span>
               </h2>
               <p className="text-xs text-slate-500">
-                พิมพ์โจทย์ภาษาธรรมชาติ เพื่อให้ Gemini AI คำนวณและจับคู่โครงงานที่ตรงที่สุดแบบ Real-time
+                พิมพ์โจทย์ภาษาธรรมชาติ เพื่อให้ AI คำนวณและจับคู่โครงงานที่ตรงที่สุดแบบ Real-time
               </p>
             </div>
           </div>
@@ -256,7 +256,7 @@ export const AiMatchModal: React.FC<AiMatchModalProps> = ({
                   <div className="flex items-center space-x-2 text-amber-400 font-bold">
                     <Activity className="w-3.5 h-3.5 animate-pulse" />
                     <span>
-                      {calcProgress < 100 ? 'GEMINI AI IS CALCULATING...' : 'CALCULATION COMPLETE'}
+                      {calcProgress < 100 ? 'กำลังให้ AI คำนวณความเหมาะสม...' : 'คำนวณโครงงานเสร็จสิ้น'}
                     </span>
                   </div>
                   <span className="text-amber-400 font-bold">{calcProgress}%</span>
@@ -330,7 +330,7 @@ export const AiMatchModal: React.FC<AiMatchModalProps> = ({
           ) : (
             <div className="flex items-center space-x-1 text-[11px] text-slate-400">
               <Bot className="w-3.5 h-3.5" />
-              <span>ขับเคลื่อนด้วย Google Gemini Multi-Model AI Engine</span>
+              <span>ระบบ AI ประมวลผลและวิเคราะห์โครงงานอัจฉริยะ</span>
             </div>
           )}
 
