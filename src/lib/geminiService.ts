@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { DnaCardData, ExtensionGap, AiMatchResult } from '../types/dna';
 
 // Server-only secret. Never use a NEXT_PUBLIC_ fallback here — this module
@@ -7,6 +7,33 @@ import { DnaCardData, ExtensionGap, AiMatchResult } from '../types/dna';
 const geminiApiKey = process.env.GEMINI_API_KEY || '';
 
 export const isGeminiConfigured = Boolean(geminiApiKey && geminiApiKey.length > 10);
+
+// Preferred models tried in order — the first one that answers wins.
+const MODEL_FALLBACKS = ['gemini-3.6-flash', 'gemini-flash-lite-latest', 'gemini-flash-latest'];
+
+/**
+ * Single entry point for all Gemini text generation.
+ * Uses the unified @google/genai SDK (the successor of the deprecated
+ * @google/generative-ai package) and falls back through model aliases so
+ * the service keeps working if a specific alias is retired.
+ */
+async function generateText(prompt: string): Promise<string> {
+  const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+  let lastErr: unknown = null;
+
+  for (const model of MODEL_FALLBACKS) {
+    try {
+      const response = await ai.models.generateContent({ model, contents: prompt });
+      const text = response.text;
+      if (text) return text;
+      lastErr = new Error(`Empty response from ${model}`);
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+
+  throw lastErr ?? new Error('All Gemini models failed to respond');
+}
 
 export async function extractDnaWithGemini(rawText: string): Promise<{
   title_th: string;
@@ -18,7 +45,6 @@ export async function extractDnaWithGemini(rawText: string): Promise<{
 }> {
   if (isGeminiConfigured) {
     try {
-      const genAI = new GoogleGenerativeAI(geminiApiKey);
       const prompt = `
 คุณเป็นผู้เชี่ยวชาญด้านการวิเคราะห์โครงงานนิสิต (Senior Projects) สำหรับมหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตเฉลิมพระเกียรติ จังหวัดสกลนคร (มก.ฉกส.)
 วิเคราะห์ข้อความ/บทคัดย่อโครงงานต่อไปนี้ และสกัดข้อมูลออกมาเป็น JSON ตามโครงสร้างที่กำหนดเท่านั้น (ห้ามใส่ markdown อื่นนอกเหนือจาก json):
@@ -62,23 +88,7 @@ ${rawText}
 }
 `;
 
-      const modelNames = ['gemini-3.6-flash', 'gemini-flash-lite-latest', 'gemini-flash-latest'];
-      let result = null;
-      let lastErr = null;
-
-      for (const mName of modelNames) {
-        try {
-          const model = genAI.getGenerativeModel({ model: mName });
-          result = await model.generateContent(prompt);
-          if (result) break;
-        } catch (e) {
-          lastErr = e;
-        }
-      }
-
-      if (!result) throw lastErr;
-
-      const text = result.response.text();
+      const text = await generateText(prompt);
       const cleanedJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
       return JSON.parse(cleanedJson);
     } catch (error) {
@@ -93,7 +103,6 @@ ${rawText}
 export async function generateGapAnalysis(projectTitle: string, techStack: string[], problem: string): Promise<ExtensionGap[]> {
   if (isGeminiConfigured) {
     try {
-      const genAI = new GoogleGenerativeAI(geminiApiKey);
       const prompt = `
 วิเคราะห์โครงงาน "${projectTitle}" ที่มี Tech Stack: ${techStack.join(', ')} และปัญหา: "${problem}"
 เพื่อสร้าง 3 ช่องว่างการพัฒนา (Extension Gaps) ให้รุ่นน้องนิสิตนำไปต่อยอดเป็นโครงงานใหม่ได้จริง
@@ -108,22 +117,7 @@ export async function generateGapAnalysis(projectTitle: string, techStack: strin
   }
 ]
 `;
-      const modelNames = ['gemini-3.6-flash', 'gemini-flash-lite-latest', 'gemini-flash-latest'];
-      let result = null;
-      let lastErr = null;
-
-      for (const mName of modelNames) {
-        try {
-          const model = genAI.getGenerativeModel({ model: mName });
-          result = await model.generateContent(prompt);
-          if (result) break;
-        } catch (e) {
-          lastErr = e;
-        }
-      }
-
-      if (!result) throw lastErr;
-      const text = result.response.text();
+      const text = await generateText(prompt);
       const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
       return JSON.parse(cleaned);
     } catch (e) {
@@ -296,7 +290,6 @@ export async function rankProjectsWithAi(
 
   if (isGeminiConfigured) {
     try {
-      const genAI = new GoogleGenerativeAI(geminiApiKey);
       const projectSummaries = candidateProjects.map(p => ({
         id: p.id,
         title_th: p.title_th,
@@ -339,35 +332,19 @@ ${JSON.stringify(projectSummaries, null, 2)}
 }
 `;
 
-      const modelNames = ['gemini-3.6-flash', 'gemini-flash-lite-latest', 'gemini-flash-latest'];
-      let result = null;
-      let lastErr = null;
-
-      for (const mName of modelNames) {
-        try {
-          const model = genAI.getGenerativeModel({ model: mName });
-          result = await model.generateContent(prompt);
-          if (result) break;
-        } catch (e) {
-          lastErr = e;
-        }
-      }
-
-      if (result) {
-        const text = result.response.text();
-        const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(cleaned);
-        if (parsed && Array.isArray(parsed.ranked_results)) {
-          return {
-            results: parsed.ranked_results,
-            curated_summary: parsed.curated_summary || ''
-          };
-        } else if (Array.isArray(parsed)) {
-          return {
-            results: parsed,
-            curated_summary: `AI รวบรวมโครงงานที่ตรงกับ "${query}" พบ ${parsed.length} รายการที่สามารถนำไปต่อยอดได้`
-          };
-        }
+      const text = await generateText(prompt);
+      const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+      if (parsed && Array.isArray(parsed.ranked_results)) {
+        return {
+          results: parsed.ranked_results,
+          curated_summary: parsed.curated_summary || ''
+        };
+      } else if (Array.isArray(parsed)) {
+        return {
+          results: parsed,
+          curated_summary: `AI รวบรวมโครงงานที่ตรงกับ "${query}" พบ ${parsed.length} รายการที่สามารถนำไปต่อยอดได้`
+        };
       }
     } catch (e) {
       console.warn('Live Gemini rankProjectsWithAi error, falling back:', e);
