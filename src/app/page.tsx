@@ -18,6 +18,9 @@ import { dnaService } from '@/lib/dnaService';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { useAuthGate } from '@/hooks/useAuthGate';
 import { useFavorites } from '@/hooks/useFavorites';
+import { Pagination } from '@/components/projects/Pagination';
+import { HomeSkeleton } from '@/components/projects/HomeSkeleton';
+import { AiAnalysisProgress } from '@/components/projects/AiAnalysisProgress';
 import { 
   Sparkles, 
   RefreshCw, 
@@ -59,6 +62,8 @@ export default function Home() {
   const [aiMatchResults, setAiMatchResults] = useState<AiMatchResult[] | null>(null);
   const [aiCuratedSummary, setAiCuratedSummary] = useState<string | null>(null);
   const [isAiSearching, setIsAiSearching] = useState(false);
+  const [aiProgress, setAiProgress] = useState(0);
+  const [aiQueryText, setAiQueryText] = useState('');
   const [activeUserProfile, setActiveUserProfile] = useState<UserMatchProfile | null>(null);
 
   // Selected Project for Drawer & Modals
@@ -110,6 +115,15 @@ export default function Home() {
     if (!q) return;
 
     setIsAiSearching(true);
+    setAiQueryText(q);
+    setAiProgress(0);
+
+    // Live-feel percentage while the server computes: advances quickly at
+    // first then eases toward completion; snaps to 100% on response.
+    const progressTimer = window.setInterval(() => {
+      setAiProgress((prev) => Math.min(93, prev + Math.max(0.6, (93 - prev) * 0.09)));
+    }, 120);
+
     const profile: UserMatchProfile = {
       query: q,
       interest_areas: [],
@@ -126,6 +140,7 @@ export default function Home() {
 
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
+        setAiProgress(100);
         setAiMatchResults(data.data);
         setAiCuratedSummary(data.summary || `AI คัดกรองและจับคู่โครงงานที่สอดคล้องกับ "${q}" พบโครงงานที่มีความเหมาะสมสูงพร้อมพิมพ์เขียวให้ศึกษา`);
         setActiveUserProfile(profile);
@@ -133,7 +148,10 @@ export default function Home() {
     } catch (err) {
       console.warn('AI search trigger error:', err);
     } finally {
-      setIsAiSearching(false);
+      window.clearInterval(progressTimer);
+      setAiProgress(100);
+      // Brief beat so visitors see the completed bar before it unmounts
+      setTimeout(() => setIsAiSearching(false), 400);
     }
   };
 
@@ -202,6 +220,37 @@ export default function Home() {
     }
     return 0;
   });
+
+  // ── Pagination: 12 projects per page ─────────────────────────────────
+  // The page resets to 1 automatically whenever filters change: we derive
+  // the effective page from a signature of the active filters instead of
+  // syncing it with an effect.
+  const PROJECTS_PER_PAGE = 12;
+  const filterSignature = [
+    activeTab,
+    searchQuery,
+    selectedFaculty,
+    selectedDept,
+    selectedYear,
+    resourceFilter,
+    aiMatchResults ? aiMatchResults.length : -1
+  ].join('|');
+
+  const [pageState, setPageState] = useState<{ sig: string; page: number }>({
+    sig: filterSignature,
+    page: 1
+  });
+  const requestedPage = pageState.sig === filterSignature ? pageState.page : 1;
+
+  const totalProjectPages = Math.max(1, Math.ceil(filteredProjects.length / PROJECTS_PER_PAGE));
+  const currentPage = Math.min(requestedPage, totalProjectPages);
+  const goToPage = (page: number) => setPageState({ sig: filterSignature, page });
+  const paginatedProjects = filteredProjects.slice(
+    (currentPage - 1) * PROJECTS_PER_PAGE,
+    currentPage * PROJECTS_PER_PAGE
+  );
+  const rangeStart = filteredProjects.length === 0 ? 0 : (currentPage - 1) * PROJECTS_PER_PAGE + 1;
+  const rangeEnd = Math.min(currentPage * PROJECTS_PER_PAGE, filteredProjects.length);
 
   // Favorite toggle handler — requires login
   const handleToggleFavorite = (projectId: string, e?: React.MouseEvent) => {
@@ -275,11 +324,22 @@ export default function Home() {
 
         {/* Tab View Switching */}
         <main className="flex-1 overflow-x-hidden p-6 md:p-8">
+
+          {/* Live AI analysis progress — visible on every tab while running */}
+          {isAiSearching && (
+            <div className="max-w-7xl mx-auto mb-6">
+              <AiAnalysisProgress progress={aiProgress} query={aiQueryText} />
+            </div>
+          )}
           
           {/* TAB 1: Explore / Catalog Grid & Detail Panel */}
           {(activeTab === 'explore' || activeTab === 'favorites') && (
             <div className="max-w-7xl mx-auto space-y-6">
-              
+
+              {loading ? (
+                <HomeSkeleton />
+              ) : (
+                <>
               {/* AI Curated Knowledge & Blueprint Summary Card (When AI Match/Search is Active) */}
               {aiMatchResults && aiMatchResults.length > 0 && (
                 <div className="p-5 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white rounded-2xl border border-amber-500/40 shadow-soft space-y-3 animate-in fade-in duration-200">
@@ -301,7 +361,10 @@ export default function Home() {
                     </button>
                   </div>
 
-                  <p className="text-xs md:text-sm text-slate-200 leading-relaxed font-sans">
+                  <p
+                    key={aiCuratedSummary || 'default-summary'}
+                    className="dna-text-reveal text-xs md:text-sm text-slate-200 leading-relaxed font-sans"
+                  >
                     {aiCuratedSummary || `AI ได้ทำการวิเคราะห์และคัดกรองพิมพ์เขียวโครงงานที่เกี่ยวข้องกับโจทย์ที่คุณต้องการ เรียงลำดับตามความสอดคล้องของเทคโนโลยีและผลลัพธ์:`}
                   </p>
 
@@ -371,7 +434,7 @@ export default function Home() {
               {/* Grid of Compact DNA Cards */}
               {filteredProjects.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                  {filteredProjects.map((project) => (
+                  {paginatedProjects.map((project) => (
                     <DnaCard
                       key={project.id}
                       project={project}
@@ -408,6 +471,21 @@ export default function Home() {
                 </div>
               )}
 
+              {/* Pagination — 12 projects/page, numbered buttons + jump input */}
+              {totalProjectPages > 1 && (
+                <div className="space-y-2">
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    แสดง {rangeStart}–{rangeEnd} จาก {filteredProjects.length} โครงงาน
+                  </p>
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalProjectPages}
+                    onPageChange={goToPage}
+                  />
+                </div>
+              )}
+                </>
+              )}
             </div>
           )}
 
