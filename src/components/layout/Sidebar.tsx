@@ -6,6 +6,7 @@ import {
   GitFork, 
   BarChart3, 
   Bookmark, 
+  FolderOpen,
   ArrowUp
 } from 'lucide-react';
 import { ActiveTab } from '@/types/dna';
@@ -16,13 +17,15 @@ interface SidebarProps {
   setActiveTab: (tab: ActiveTab) => void;
   onOpenCreateModal: () => void;
   favoriteCount: number;
+  myProjectCount: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   setActiveTab,
   onOpenCreateModal,
-  favoriteCount
+  favoriteCount,
+  myProjectCount
 }) => {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -68,6 +71,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'โครงงานที่บันทึกไว้',
       icon: Bookmark,
       badge: favoriteCount > 0 ? favoriteCount : undefined,
+    },
+    {
+      id: 'my-projects' as ActiveTab,
+      label: 'โครงงานของฉัน',
+      icon: FolderOpen,
+      badge: myProjectCount > 0 ? myProjectCount : undefined,
     },
   ];
 

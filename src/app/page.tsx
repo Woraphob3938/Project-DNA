@@ -18,7 +18,7 @@ import { dnaService } from '@/lib/dnaService';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { useAuthGate } from '@/hooks/useAuthGate';
 import { useFavorites } from '@/hooks/useFavorites';
-import { removeMyProjectId } from '@/hooks/useMyProjects';
+import { useMyProjectIds, removeMyProjectId } from '@/hooks/useMyProjects';
 import { Pagination } from '@/components/projects/Pagination';
 import { HomeSkeleton } from '@/components/projects/HomeSkeleton';
 import { 
@@ -27,6 +27,9 @@ import {
   Search, 
   Layers, 
   BookmarkCheck,
+  FolderOpen,
+  Trash2,
+  Loader2,
   X
 } from 'lucide-react';
 
@@ -57,6 +60,11 @@ export default function Home() {
 
   // Favorites persisted in localStorage via an external store (SSR-safe)
   const [favorites, toggleFavorite] = useFavorites();
+
+  // Ownership registry for the "โครงงานของฉัน" tab
+  const { myIds, reload: reloadMyIds } = useMyProjectIds();
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
 
   // AI Search State
   const [aiMatchResults, setAiMatchResults] = useState<AiMatchResult[] | null>(null);
@@ -247,11 +255,22 @@ export default function Home() {
 
   // Owner-only delete: remove from DB, local ownership registry and UI state
   const handleDeleteProject = async (project: Project) => {
-    await dnaService.deleteProject(project.id);
-    removeMyProjectId(project.id);
-    setProjects(prev => prev.filter(p => p.id !== project.id));
-    setSelectedProject(null);
+    if (deletingProjectId) return;
+    setDeletingProjectId(project.id);
+    try {
+      await dnaService.deleteProject(project.id);
+      removeMyProjectId(project.id);
+      setProjects(prev => prev.filter(p => p.id !== project.id));
+      setSelectedProject(null);
+      reloadMyIds();
+    } finally {
+      setDeletingProjectId(null);
+      setConfirmDeleteId(null);
+    }
   };
+
+  // Projects owned by the signed-in visitor (โครงงานของฉัน tab)
+  const ownedProjects = myIds ? projects.filter(p => myIds.includes(p.id)) : [];
 
   // Add new project handler
   const handleSuccessCreate = async (newProjData: Partial<Project>) => {
@@ -270,6 +289,7 @@ export default function Home() {
         setActiveTab={setActiveTab}
         onOpenCreateModal={() => setIsCreateModalOpen(true)}
         favoriteCount={favorites.length}
+        myProjectCount={myIds?.length ?? 0}
       />
 
       {/* 2. Main Content Area */}
@@ -468,6 +488,92 @@ export default function Home() {
                   />
                 </div>
               )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* TAB 5: My Projects — owned catalog with inline delete */}
+          {activeTab === 'my-projects' && (
+            <div className="max-w-7xl mx-auto space-y-6">
+              {loading ? (
+                <HomeSkeleton />
+              ) : (
+                <>
+                  {/* Section Header */}
+                  <div>
+                    <h2 className="font-display text-xl font-bold text-slate-900 flex items-center space-x-2.5">
+                      <FolderOpen className="w-5 h-5 text-amber-600" />
+                      <span>โครงงานของฉัน</span>
+                      <span className="text-xs font-mono font-medium text-slate-600 bg-white px-2.5 py-0.5 rounded-md border border-slate-200 shadow-2xs">
+                        {ownedProjects.length} โครงงาน
+                      </span>
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-1">
+                      โครงงานที่คุณสร้างและเผยแพร่เข้าคลัง — กดปุ่ม &quot;ลบ&quot; บนการ์ดเพื่อนำออกถาวร
+                    </p>
+                  </div>
+
+                  {ownedProjects.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                      {ownedProjects.map((project) => (
+                        <div key={project.id} className="relative group/my">
+                          <DnaCard
+                            project={project}
+                            isSelected={selectedProject?.id === project.id}
+                            onSelect={(p) => setSelectedProject(prev => prev?.id === p.id ? null : p)}
+                            isFavorite={favorites.includes(project.id)}
+                            onToggleFavorite={handleToggleFavorite}
+                            aiMatchResult={aiMatchResults?.find(r => r.project_id === project.id)}
+                          />
+
+                          {/* Inline delete — appears on hover, two-step confirm */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (deletingProjectId) return;
+                              if (confirmDeleteId !== project.id) {
+                                setConfirmDeleteId(project.id);
+                                return;
+                              }
+                              void handleDeleteProject(project);
+                            }}
+                            disabled={deletingProjectId === project.id}
+                            aria-label={`ลบ ${project.title_th}`}
+                            title={confirmDeleteId === project.id ? 'กดอีกครั้งเพื่อยืนยันการลบถาวร' : 'ลบโครงงานนี้'}
+                            className={`absolute top-2 right-2 z-30 flex items-center space-x-1 px-2 py-1 text-[11px] font-bold rounded-lg border shadow-md transition-all ${
+                              confirmDeleteId === project.id
+                                ? 'bg-red-600 hover:bg-red-500 text-white border-red-400 opacity-100'
+                                : 'bg-slate-950/80 hover:bg-red-600 text-white/90 hover:text-white border-white/20 opacity-0 group-hover/my:opacity-100 focus:opacity-100'
+                            }`}
+                          >
+                            {deletingProjectId === project.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-3 h-3" />
+                            )}
+                            <span>{confirmDeleteId === project.id ? 'ยืนยันลบ?' : 'ลบ'}</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 shadow-soft space-y-3">
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center mx-auto">
+                        <FolderOpen className="w-5 h-5" />
+                      </div>
+                      <h3 className="font-display text-base font-bold text-slate-900">ยังไม่มีโครงงานของคุณ</h3>
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                        เริ่มสร้าง DNA Card แรกของคุณ — วางบทคัดย่อแล้วให้ AI จัดการที่เหลือ
+                      </p>
+                      <button
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="px-4 py-2 bg-slate-900 text-amber-400 text-xs font-bold rounded-lg transition-colors hover:bg-slate-800"
+                      >
+                        + เพิ่มโครงงานใหม่
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
             </div>
