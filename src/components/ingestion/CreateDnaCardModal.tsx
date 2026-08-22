@@ -5,11 +5,11 @@ import {
   X, 
   Sparkles, 
   Check, 
-  Loader2, 
-  Dna
+  Loader2
 } from 'lucide-react';
 import { Project, Department, Faculty } from '@/types/dna';
 import { extractDnaWithGemini } from '@/lib/geminiService';
+import { Logo } from '@/components/layout/Logo';
 
 interface CreateDnaCardModalProps {
   isOpen: boolean;
@@ -98,8 +98,8 @@ export const CreateDnaCardModal: React.FC<CreateDnaCardModalProps> = ({
         {/* Header */}
         <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-slate-900 text-amber-400 flex items-center justify-center shadow-md">
-              <Dna className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center shadow-md overflow-hidden">
+              <Logo className="w-8 h-8" />
             </div>
             <div>
               <div className="flex items-center space-x-2">

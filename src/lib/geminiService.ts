@@ -1,7 +1,10 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { DnaCardData, ExtensionGap, AiMatchResult } from '../types/dna';
 
-const geminiApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
+// Server-only secret. Never use a NEXT_PUBLIC_ fallback here — this module
+// must stay out of client bundles, and NEXT_PUBLIC_* values get inlined
+// into any client component that imports it.
+const geminiApiKey = process.env.GEMINI_API_KEY || '';
 
 export const isGeminiConfigured = Boolean(geminiApiKey && geminiApiKey.length > 10);
 
@@ -59,7 +62,7 @@ ${rawText}
 }
 `;
 
-      const modelNames = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-pro'];
+      const modelNames = ['gemini-3.6-flash', 'gemini-flash-lite-latest', 'gemini-flash-latest'];
       let result = null;
       let lastErr = null;
 
@@ -105,7 +108,7 @@ export async function generateGapAnalysis(projectTitle: string, techStack: strin
   }
 ]
 `;
-      const modelNames = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-pro'];
+      const modelNames = ['gemini-3.6-flash', 'gemini-flash-lite-latest', 'gemini-flash-latest'];
       let result = null;
       let lastErr = null;
 
@@ -336,7 +339,7 @@ ${JSON.stringify(projectSummaries, null, 2)}
 }
 `;
 
-      const modelNames = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-pro'];
+      const modelNames = ['gemini-3.6-flash', 'gemini-flash-lite-latest', 'gemini-flash-latest'];
       let result = null;
       let lastErr = null;
 
@@ -391,18 +394,20 @@ ${JSON.stringify(projectSummaries, null, 2)}
     const tech = (p.dna_card?.tech_stack || []).map((t: string) => t.toLowerCase());
     const matchedSkills: string[] = [];
 
-    // Semantic keyword bonuses
-    if (isSolarPump && (p.id === 'proj-3' || p.id === 'proj-4')) {
-      score += (p.id === 'proj-3' ? 55 : 40);
-    }
-    if (isIndigo && (p.id === 'proj-1' || p.id === 'proj-2')) {
-      score += (p.id === 'proj-1' ? 52 : 55);
-    }
-    if (isCattle && p.id === 'proj-5') {
-      score += 55;
-    }
-    if (isHealth && p.id === 'proj-7') {
-      score += 55;
+    // Topic affinity — purely CONTENT-BASED so it works with any dataset
+    // (real Supabase rows included), not just the seed fixture ids.
+    const haystack = `${title} ${abstract} ${tech.join(' ')}`;
+    const topics = [
+      { active: isSolarPump, weight: 50, terms: ['สูบน้ำ', 'แสงอาทิตย์', 'solar', 'pump', 'lorawan', 'lora', 'ประปา', 'ชลประทาน'] },
+      { active: isIndigo, weight: 48, terms: ['คราม', 'indigo', 'ผ้า', 'สิ่งทอ', 'textile', 'vision', 'สีย้อม'] },
+      { active: isCattle, weight: 50, terms: ['โค', 'วัว', 'ปศุสัตว์', 'cattle', 'ฟาร์ม'] },
+      { active: isHealth, weight: 50, terms: ['สุขภาพ', 'ล้ม', 'ผู้สูงอายุ', 'แพทย์', 'health', 'wearable'] }
+    ];
+    for (const topic of topics) {
+      if (topic.active && topic.terms.some(term => haystack.includes(term))) {
+        score += topic.weight;
+        break;
+      }
     }
 
     allTerms.forEach(term => {
@@ -429,14 +434,17 @@ ${JSON.stringify(projectSummaries, null, 2)}
     };
   }).sort((a, b) => b.match_score - a.match_score);
 
-  let curatedSummary = `AI คัดกรองและจับคู่โครงงานที่สอดคล้องกับ "${query}": พบโครงงานที่มีความเหมาะสมสูงพร้อมพิมพ์เขียวให้ศึกษา`;
-  if (isSolarPump) {
-    curatedSummary = `AI รวบรวมพิมพ์เขียวโครงงานที่เกี่ยวข้องกับ "${query}": พบโครงงานเด่นระบบสูบน้ำพลังงานแสงอาทิตย์ LoRaWAN (วิศวกรรมไฟฟ้า) และแบบจำลองพยากรณ์น้ำ (วิทยาการคอมพิวเตอร์) พร้อมชุดข้อมูลและพิมพ์เขียวฮาร์ดแวร์สำหรับนำไปต่อยอดได้ทันที`;
-  } else if (isIndigo) {
-    curatedSummary = `AI รวบรวมพิมพ์เขียวโครงงานผ้าย้อมครามสกลนคร: พบโครงงานระบบ IoT ถังหมักคราม (ME) และระบบ Computer Vision ตรวจวัดเกรดสี (CS) พร้อมซอร์สโค้ด GitHub และชุดข้อมูล 180 วัน`;
-  } else if (isCattle) {
-    curatedSummary = `AI รวบรวมพิมพ์เขียวโครงงานโคขุนโพนยางคำ: พบระบบประเมินน้ำหนัก 3D Vision PointNet พร้อม Dataset 500 ตัวอย่างสำหรับการสร้าง AI วิเคราะห์ปศุสัตว์`;
-  }
+  // Build the fallback summary from the ACTUAL ranked results instead of
+  // hard-coding seed-project names, so it stays truthful on any dataset.
+  const topTitles = results
+    .filter((r) => r.match_score >= 70)
+    .slice(0, 2)
+    .map((r) => candidateProjects.find((p) => p.id === r.project_id)?.title_th)
+    .filter((t): t is string => Boolean(t));
+
+  const curatedSummary = topTitles.length > 0
+    ? `AI คัดกรองโครงงานที่สอดคล้องกับ "${query}" มากที่สุด: ${topTitles.join(' และ ')} — พร้อมพิมพ์เขียว DNA และทรัพยากรให้นำไปต่อยอดได้ทันที`
+    : `AI คัดกรองและจับคู่โครงงานที่สอดคล้องกับ "${query}": พบโครงงานที่มีความเหมาะสมสูงพร้อมพิมพ์เขียวให้ศึกษา`;
 
   return {
     results,

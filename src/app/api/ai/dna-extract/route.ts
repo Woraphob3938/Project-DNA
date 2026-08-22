@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { dnaExtractRequestSchema } from '@/lib/schemas';
 import { extractDnaWithGemini } from '@/lib/geminiService';
 
 export async function POST(req: NextRequest) {
   try {
-    const { text } = await req.json();
-    if (!text) {
-      return NextResponse.json({ error: 'Text is required' }, { status: 400 });
+    const parsed = dnaExtractRequestSchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Text is required (1–20,000 characters)' }, { status: 400 });
     }
 
-    const data = await extractDnaWithGemini(text);
+    const data = await extractDnaWithGemini(parsed.data.text);
     return NextResponse.json({ success: true, data });
-  } catch (error: any) {
+  } catch (error) {
     console.error('API DNA Extract Error:', error);
-    return NextResponse.json({ error: error.message || 'Internal error' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Internal error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

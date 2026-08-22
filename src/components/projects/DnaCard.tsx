@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { 
   GitFork, 
   Bookmark, 
@@ -10,7 +11,8 @@ import {
   Box, 
   ArrowUpRight,
   Layers,
-  Sparkles
+  Sparkles,
+  GraduationCap
 } from 'lucide-react';
 import { Project, AiMatchResult } from '@/types/dna';
 
@@ -49,11 +51,12 @@ export const DnaCard: React.FC<DnaCardProps> = ({
       {/* 1. Compact Cover Image Banner (h-32) */}
       <div className="relative h-32 w-full overflow-hidden bg-slate-100 shrink-0">
         {project.cover_image_url ? (
-          <img
+          <Image
             src={project.cover_image_url}
             alt={project.title_th}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            loading="lazy"
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400">
@@ -133,22 +136,16 @@ export const DnaCard: React.FC<DnaCardProps> = ({
               {project.dna_card?.problem_statement || project.abstract_th}
             </p>
           )}
-        </div>
 
-        {/* Tech Stack Chips (Single Clean Row) */}
-        <div className="flex flex-wrap items-center gap-1 overflow-hidden max-h-6">
-          {project.dna_card?.tech_stack?.slice(0, 3).map((tech, idx) => (
-            <span
-              key={idx}
-              className="px-2 py-0.5 text-[10px] font-mono font-medium bg-slate-50 text-slate-700 rounded border border-slate-200/80 shrink-0"
-            >
-              {tech}
-            </span>
-          ))}
-          {(project.dna_card?.tech_stack?.length || 0) > 3 && (
-            <span className="px-1 py-0.5 text-[9px] text-slate-400 font-mono bg-slate-50 rounded border border-slate-200/60 shrink-0">
-              +{(project.dna_card?.tech_stack?.length || 0) - 3}
-            </span>
+          {/* Advisor name — directly below details */}
+          {project.dna_card?.advisor_name && (
+            <p className="flex items-center gap-1.5 text-[11px] text-slate-500 leading-none pt-1.5 mt-1 border-t border-dashed border-slate-100">
+              <GraduationCap className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span className="truncate">
+                <span className="text-slate-400">อ.ที่ปรึกษา</span>
+                <span className="font-medium text-slate-600"> {project.dna_card.advisor_name}</span>
+              </span>
+            </p>
           )}
         </div>
 

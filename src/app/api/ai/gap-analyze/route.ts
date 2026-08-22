@@ -1,21 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { gapAnalyzeRequestSchema } from '@/lib/schemas';
 import { generateGapAnalysis } from '@/lib/geminiService';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const projectTitle = body.title || body.projectTitle;
-    const techStack = body.techStack || body.tech_stack || [];
-    const problem = body.problem || body.problem_statement || '';
+    const parsed = gapAnalyzeRequestSchema.safeParse(await req.json().catch(() => null));
+    const title = parsed.success ? parsed.data.title || parsed.data.projectTitle : undefined;
 
-    if (!projectTitle) {
+    if (!parsed.success || !title) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
 
-    const gaps = await generateGapAnalysis(projectTitle, techStack, problem);
+    const techStack = parsed.data.techStack ?? parsed.data.tech_stack ?? [];
+    const problem = parsed.data.problem ?? parsed.data.problem_statement ?? '';
+
+    const gaps = await generateGapAnalysis(title, techStack, problem);
     return NextResponse.json({ success: true, data: gaps, gaps });
-  } catch (error: any) {
+  } catch (error) {
     console.error('API Gap Analyze Error:', error);
-    return NextResponse.json({ error: error.message || 'Internal error' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Internal error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

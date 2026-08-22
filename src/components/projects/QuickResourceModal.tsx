@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { 
   X, 
   Download, 
-  Github, 
   Mail, 
   Copy, 
   Check, 
@@ -15,7 +14,9 @@ import {
   BookOpen,
   UserCheck
 } from 'lucide-react';
+import { GithubIcon } from '@/components/icons/GithubIcon';
 import { Project } from '@/types/dna';
+import { useAuthGate } from '@/hooks/useAuthGate';
 
 interface QuickResourceModalProps {
   project: Project | null;
@@ -29,6 +30,8 @@ export const QuickResourceModal: React.FC<QuickResourceModalProps> = ({
   onClose
 }) => {
   const [copiedText, setCopiedText] = useState<string | null>(null);
+  // Downloads require login
+  const { requireLogin } = useAuthGate();
 
   if (!isOpen || !project) return null;
 
@@ -97,6 +100,9 @@ export const QuickResourceModal: React.FC<QuickResourceModalProps> = ({
                       href={asset.resource_url}
                       target="_blank"
                       rel="noreferrer"
+                      onClick={(e) => {
+                        if (!requireLogin('/')) e.preventDefault();
+                      }}
                       className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded-xl flex items-center space-x-1 shadow-xs transition-colors shrink-0"
                     >
                       <Download className="w-3.5 h-3.5" />
@@ -116,7 +122,7 @@ export const QuickResourceModal: React.FC<QuickResourceModalProps> = ({
           {project.dna_card?.repository_url && (
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center space-x-1.5">
-                <Github className="w-4 h-4 text-slate-800" />
+                <GithubIcon className="w-4 h-4 text-slate-800" />
                 <span>Git Clone Repository</span>
               </h4>
               <div className="flex items-center justify-between p-3 bg-slate-900 text-slate-100 rounded-xl font-mono text-xs">

@@ -1,19 +1,21 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { 
-  Search, 
-  Plus, 
-  LogIn, 
-  Sparkles, 
+import {
+  Search,
+  Plus,
+  Sparkles,
   RotateCcw,
   ChevronDown,
   Filter,
-  Loader2
+  Loader2,
+  PencilLine
 } from 'lucide-react';
 import { Faculty, Department, ActiveTab } from '@/types/dna';
-
+import { UserMenu } from '@/components/layout/UserMenu';
+import { FilterModal } from '@/components/layout/FilterModal';
+import { useAuthGate } from '@/hooks/useAuthGate';
 interface HeaderProps {
   activeTab?: ActiveTab;
   searchQuery: string;
@@ -31,7 +33,6 @@ interface HeaderProps {
   setSelectedYear?: (year: number | null) => void;
   resourceFilter?: string | null;
   setResourceFilter?: (res: string | null) => void;
-  onOpenAiMatchModal?: () => void;
   isAiMatchActive?: boolean;
   onClearAiMatch?: () => void;
   onOpenCreateModal: () => void;
@@ -55,13 +56,27 @@ export const Header: React.FC<HeaderProps> = ({
   setSelectedYear,
   resourceFilter = null,
   setResourceFilter,
-  onOpenAiMatchModal,
   isAiMatchActive = false,
   onClearAiMatch,
   onOpenCreateModal,
   totalProjects
 }) => {
   const showSearchAndFilters = activeTab === 'explore' || activeTab === 'favorites';
+
+  // Gated actions bounce signed-out visitors to /login
+  const { requireLogin } = useAuthGate();
+
+  // Unified filter popup state
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isSearchHintVisible, setIsSearchHintVisible] = useState(true);
+
+  const activeFilterCount = [
+    selectedFaculty,
+    selectedDept,
+    selectedYear,
+    resourceFilter,
+    isAiMatchActive ? 'ai' : null
+  ].filter(Boolean).length;
 
   const availableDepartments = selectedFaculty
     ? departments.filter(d => d.faculty_id === selectedFaculty)
@@ -115,42 +130,74 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Global Navigation Actions */}
         <div className="flex items-center space-x-2 shrink-0">
           
-          {/* Submit Project Button */}
+          {/* My Projects — requires login */}
+          <Link
+            href="/edit"
+            onClick={(e) => {
+              if (!requireLogin('/edit')) e.preventDefault();
+            }}
+            className="flex items-center space-x-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl border border-slate-200 transition-all shrink-0"
+            title="จัดการโครงงานที่คุณเพิ่มไว้"
+          >
+            <PencilLine className="w-4 h-4 text-slate-500" />
+            <span className="hidden sm:inline">โครงงานของฉัน</span>
+          </Link>
+
+          {/* Submit Project Button — requires login */}
           <Link
             href="/submit"
+            onClick={(e) => {
+              if (!requireLogin('/submit')) e.preventDefault();
+            }}
             className="flex items-center space-x-1.5 px-3.5 py-2 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition-all shrink-0"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span className="hidden sm:inline">เพิ่มโปรเจกต์</span>
           </Link>
 
-          {/* Login Button */}
-          <Link
-            href="/login"
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 font-semibold text-xs rounded-xl transition-all shrink-0 border border-slate-200/80"
-          >
-            <LogIn className="w-3.5 h-3.5 text-slate-600" />
-            <span className="hidden sm:inline">เข้าสู่ระบบ</span>
-          </Link>
+          {/* Auth-aware User Menu (login link / user chip + logout) */}
+          <UserMenu />
         </div>
       </div>
 
       {/* 2. Compact Unified Search & Filter Command Bar (Only on Explore/Favorites) */}
       {showSearchAndFilters && (
         <div className="px-6 py-2.5 bg-slate-50/80 border-t border-slate-200/70">
-          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2.5">
-            
-            {/* Left: Sleek Search Input with inline AI action */}
-            <div className="relative flex-1 min-w-[260px] max-w-lg">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <div className="max-w-7xl mx-auto flex flex-wrap md:grid md:grid-cols-[1fr_auto_1fr] items-center gap-3">
+
+            {/* Left spacer — balances the group so search + filter stay centred together */}
+            <div className="hidden md:block" aria-hidden="true" />
+
+            {/* Centre: Search + Filter grouped tightly together, kept centred as one unit */}
+            <div className="order-first md:order-none w-full md:w-auto flex items-center gap-2">
+
+              {/* Search field with hint marquee */}
+              <div className="relative flex-1 md:flex-none">
+              <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
-                placeholder="ค้นหาชื่อโครงงานหรือพิมพ์โจทย์ เช่น อยากทำเครื่องสูบน้ำพลังงานแสงอาทิตย์..."
-                className="w-full pl-10 pr-24 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 placeholder-slate-400 shadow-2xs transition-all"
+                onFocus={() => setIsSearchHintVisible(false)}
+                onBlur={() => setIsSearchHintVisible(true)}
+                aria-label="ค้นหาโครงงาน"
+                className="w-full md:w-[38rem] max-w-full pl-12 pr-28 py-3 text-sm font-medium bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-400 text-slate-900 transition-all"
               />
+
+              {/* Animated hint ticker — drifts slowly left→right, visible only while idle */}
+              {!searchQuery && isSearchHintVisible && (
+                <div className="absolute inset-y-0 left-12 right-28 overflow-hidden flex items-center pointer-events-none" aria-hidden="true">
+                  <div className="dna-marquee-track text-sm text-slate-500 font-medium font-sans">
+                    <span>ค้นหาชื่อโครงงาน หรือพิมพ์โจทย์ที่อยากทำ…</span>
+                    <span>เช่น อยากทำเครื่องสูบน้ำพลังงานแสงอาทิตย์</span>
+                    <span>เช่น ระบบจัดการขยะด้วย AI + LoRaWAN</span>
+                    <span>ค้นหาชื่อโครงงาน หรือพิมพ์โจทย์ที่อยากทำ…</span>
+                    <span>เช่น อยากทำเครื่องสูบน้ำพลังงานแสงอาทิตย์</span>
+                    <span>เช่น ระบบจัดการขยะด้วย AI + LoRaWAN</span>
+                  </div>
+                </div>
+              )}
               
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
                 {searchQuery && (
@@ -179,129 +226,42 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                 )}
               </div>
-            </div>
-
-            {/* Right: Compact Filter Dropdowns & AI Matcher Button */}
-            <div className="flex items-center flex-wrap gap-2">
-              
-              {/* Faculty Dropdown */}
-              <div className="relative">
-                <select
-                  value={selectedFaculty || ''}
-                  onChange={(e) => {
-                    setSelectedFaculty(e.target.value || null);
-                    setSelectedDept(null);
-                  }}
-                  className={`text-xs pl-3 pr-7 py-2 rounded-xl border font-medium bg-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs transition-all ${
-                    selectedFaculty
-                      ? 'border-amber-500 text-slate-950 bg-amber-50/50 font-bold ring-1 ring-amber-400/50'
-                      : 'border-slate-200 text-slate-700 hover:border-slate-300'
-                  }`}
-                >
-                  <option value="">🏫 ทุกคณะ</option>
-                  {faculties.map((fac) => (
-                    <option key={fac.id} value={fac.id}>
-                      {fac.short_name} - {fac.name_th}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
 
-              {/* Department Dropdown */}
-              <div className="relative">
-                <select
-                  value={selectedDept || ''}
-                  onChange={(e) => setSelectedDept(e.target.value || null)}
-                  className={`text-xs pl-3 pr-7 py-2 rounded-xl border font-medium bg-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs transition-all ${
-                    selectedDept
-                      ? 'border-amber-500 text-slate-950 bg-amber-50/50 font-bold ring-1 ring-amber-400/50'
-                      : 'border-slate-200 text-slate-700 hover:border-slate-300'
+              {/* Unified Filter Trigger — sits right next to the search bar */}
+              <div className="flex items-center gap-2 shrink-0">
+
+                {/* Quick-reset (only when filters are active) */}
+                {hasActiveFilters && (
+                  <button
+                    onClick={handleResetAllFilters}
+                    className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-red-600 hover:border-red-200 shadow-sm transition-colors"
+                    title="ล้างตัวกรองทั้งหมด"
+                    aria-label="ล้างตัวกรองทั้งหมด"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setIsFilterOpen(true)}
+                  className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl border text-xs font-bold shadow-sm transition-all ${
+                    activeFilterCount > 0
+                      ? 'bg-amber-50 border-amber-400 ring-1 ring-amber-400/40 text-amber-900'
+                      : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                   }`}
+                  aria-haspopup="dialog"
                 >
-                  <option value="">🎓 ทุกสาขาวิชา</option>
-                  {availableDepartments.map((dept) => (
-                    <option key={dept.id} value={dept.code}>
-                      {dept.code} - {dept.name_th}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <Filter className="w-4 h-4" />
+                  <span>ตัวกรอง</span>
+                  {activeFilterCount > 0 && (
+                    <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-extrabold leading-none">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                  <ChevronDown className="w-3.5 h-3.5 opacity-50" />
+                </button>
               </div>
-
-              {/* Year Dropdown */}
-              {availableYears && availableYears.length > 0 && setSelectedYear && (
-                <div className="relative">
-                  <select
-                    value={selectedYear ? String(selectedYear) : ''}
-                    onChange={(e) => setSelectedYear(e.target.value ? Number(e.target.value) : null)}
-                    className={`text-xs pl-3 pr-7 py-2 rounded-xl border font-medium bg-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs transition-all ${
-                      selectedYear
-                        ? 'border-amber-500 text-slate-950 bg-amber-50/50 font-bold ring-1 ring-amber-400/50'
-                        : 'border-slate-200 text-slate-700 hover:border-slate-300'
-                    }`}
-                  >
-                    <option value="">📅 ทุกปีการศึกษา</option>
-                    {availableYears.map((yr) => (
-                      <option key={yr} value={yr}>
-                        ปี พ.ศ. {yr}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              )}
-
-              {/* Resource Filter Dropdown */}
-              {setResourceFilter && (
-                <div className="relative">
-                  <select
-                    value={resourceFilter || ''}
-                    onChange={(e) => setResourceFilter(e.target.value || null)}
-                    className={`text-xs pl-3 pr-7 py-2 rounded-xl border font-medium bg-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs transition-all ${
-                      resourceFilter
-                        ? 'border-amber-500 text-slate-950 bg-amber-50/50 font-bold ring-1 ring-amber-400/50'
-                        : 'border-slate-200 text-slate-700 hover:border-slate-300'
-                    }`}
-                  >
-                    <option value="">💾 ทรัพยากรทั้งหมด</option>
-                    <option value="code">💻 มี Source Code</option>
-                    <option value="dataset">📊 มี Dataset</option>
-                    <option value="model">🤖 มี AI Model</option>
-                    <option value="lineage">🌿 มีสายต่อยอด</option>
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              )}
-
-              {/* AI Matchmaker Trigger Button */}
-              {onOpenAiMatchModal && (
-                <button
-                  onClick={onOpenAiMatchModal}
-                  className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl font-bold text-xs shadow-2xs transition-all shrink-0 ${
-                    isAiMatchActive
-                      ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400'
-                      : 'bg-slate-950 hover:bg-black text-amber-400 active:scale-98'
-                  }`}
-                  title="เปิดหน้าต่างค้นหาและจับคู่ด้วย AI"
-                >
-                  <Sparkles className="w-3.5 h-3.5 fill-current" />
-                  <span>{isAiMatchActive ? 'AI กรองเปิดอยู่' : '⚡ AI ค้นหาลึก'}</span>
-                </button>
-              )}
-
-              {/* Reset All Filters Button (Only shown when filters are active) */}
-              {hasActiveFilters && (
-                <button
-                  onClick={handleResetAllFilters}
-                  className="px-2.5 py-2 bg-slate-200/80 hover:bg-red-50 hover:text-red-700 text-slate-600 rounded-xl text-xs font-semibold flex items-center space-x-1 transition-colors shadow-2xs"
-                  title="ล้างตัวกรองทั้งหมด"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span className="hidden xl:inline">ล้างตัวกรอง</span>
-                </button>
-              )}
-
             </div>
           </div>
 
@@ -402,6 +362,24 @@ export const Header: React.FC<HeaderProps> = ({
 
         </div>
       )}
+
+      <FilterModal
+        open={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        faculties={faculties}
+        departments={availableDepartments}
+        availableYears={availableYears}
+        selectedFaculty={selectedFaculty}
+        onSelectFaculty={setSelectedFaculty}
+        selectedDept={selectedDept}
+        onSelectDept={setSelectedDept}
+        selectedYear={selectedYear}
+        onSelectYear={setSelectedYear}
+        resourceFilter={resourceFilter}
+        onSelectResource={setResourceFilter}
+        hasActiveFilters={hasActiveFilters}
+        onResetAll={handleResetAllFilters}
+      />
 
     </header>
   );

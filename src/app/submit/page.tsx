@@ -1,276 +1,54 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { 
-  Dna, 
-  ArrowLeft, 
-  Sparkles, 
-  CheckCircle2, 
-  AlertCircle, 
-  GraduationCap, 
-  Building, 
-  Upload, 
-  FileCode, 
-  Database, 
-  Cpu, 
-  Layers, 
-  Plus, 
-  Trash2, 
-  ArrowRight, 
-  GitFork, 
-  Github, 
+import {
+  ArrowLeft,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle,
+  GraduationCap,
+  Building,
+  Upload,
+  FileCode,
+  Database,
+  Cpu,
+  Layers,
+  Plus,
+  Trash2,
+  ArrowRight,
+  GitFork,
   ExternalLink,
   HelpCircle,
   FolderArchive,
   BookOpen,
   Share2
 } from 'lucide-react';
-import { dnaService } from '@/lib/dnaService';
-import { Faculty, Department, Project, ReusableAsset, ExtensionGap } from '@/types/dna';
+import { GithubIcon } from '@/components/icons/GithubIcon';
+import { Logo } from '@/components/layout/Logo';
+import { useSubmitForm } from '@/hooks/useSubmitForm';
 
 export default function SubmitProjectPage() {
-  const router = useRouter();
-
-  // Reference data from Service
-  const faculties = dnaService.getInitialFaculties();
-  const departments = dnaService.getInitialDepartments();
-
-  // Form Step
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
-
-  // Form State: Step 1 Basic Info
-  const [titleTh, setTitleTh] = useState('');
-  const [titleEn, setTitleEn] = useState('');
-  const [selectedFacultyId, setSelectedFacultyId] = useState<string>(faculties[0]?.id || 'fac-kuse');
-  const [selectedDeptId, setSelectedDeptId] = useState<string>('');
-  const [academicYear, setAcademicYear] = useState<number>(2568);
-  const [advisorName, setAdvisorName] = useState('');
-  const [studentAuthors, setStudentAuthors] = useState<{ name: string; student_id: string; email: string }[]>([
-    { name: '', student_id: '', email: '' }
-  ]);
-
-  // Form State: Step 2 Abstract & AI Extraction
-  const [abstractTh, setAbstractTh] = useState('');
-  const [problemStatement, setProblemStatement] = useState('');
-  const [proposedSolution, setProposedSolution] = useState('');
-  const [techStackInput, setTechStackInput] = useState('Python, React, TypeScript, IoT');
-  const [keyResults, setKeyResults] = useState('');
-  const [isAiExtracting, setIsAiExtracting] = useState(false);
-  const [aiExtractedSuccess, setAiExtractedSuccess] = useState(false);
-
-  // Form State: Step 3 Reusable Assets
-  const [githubUrl, setGithubUrl] = useState('');
-  const [datasetUrl, setDatasetUrl] = useState('');
-  const [modelUrl, setModelUrl] = useState('');
-  const [paperUrl, setPaperUrl] = useState('');
-
-  // Form State: Step 4 Extension Gaps
-  const [limitations, setLimitations] = useState('');
-  const [suggestedIdeas, setSuggestedIdeas] = useState('');
-
-  // Submission state
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-
-  // Available departments for chosen faculty
-  const availableDepts = departments.filter(d => d.faculty_id === selectedFacultyId);
-
-  // Set default dept on faculty change
-  const handleFacultyChange = (facId: string) => {
-    setSelectedFacultyId(facId);
-    const depts = departments.filter(d => d.faculty_id === facId);
-    if (depts.length > 0) {
-      setSelectedDeptId(depts[0].id);
-    }
-  };
-
-  // Add/Remove Student Author
-  const handleAddAuthor = () => {
-    setStudentAuthors([...studentAuthors, { name: '', student_id: '', email: '' }]);
-  };
-
-  const handleRemoveAuthor = (index: number) => {
-    if (studentAuthors.length > 1) {
-      setStudentAuthors(studentAuthors.filter((_, i) => i !== index));
-    }
-  };
-
-  const handleAuthorChange = (index: number, field: 'name' | 'student_id' | 'email', value: string) => {
-    const updated = [...studentAuthors];
-    updated[index][field] = value;
-    setStudentAuthors(updated);
-  };
-
-  // Gemini Live AI DNA Extraction
-  const handleAiExtract = async () => {
-    if (!abstractTh.trim() && !titleTh.trim()) {
-      setErrorMessage('กรุณากรอกชื่อโครงงานหรือบทคัดย่อก่อนใช้ AI สกัด DNA');
-      return;
-    }
-
-    setIsAiExtracting(true);
-    setErrorMessage('');
-
-    try {
-      const promptText = `ชื่อโครงงาน: ${titleTh}\nบทคัดย่อ: ${abstractTh}`;
-      const res = await fetch('/api/ai/dna-extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: promptText })
-      });
-
-      const data = await res.json();
-
-      if (data.success && data.data) {
-        const d = data.data;
-        if (d.title_th && !titleTh) setTitleTh(d.title_th);
-        if (d.title_en && !titleEn) setTitleEn(d.title_en);
-        if (d.dna_card?.problem_statement) setProblemStatement(d.dna_card.problem_statement);
-        if (d.dna_card?.solution_approach) setProposedSolution(d.dna_card.solution_approach);
-        if (d.dna_card?.tech_stack) setTechStackInput(d.dna_card.tech_stack.join(', '));
-        if (d.dna_card?.key_results) setKeyResults(d.dna_card.key_results);
-        setAiExtractedSuccess(true);
-      } else {
-        // Smart Local Parser Fallback
-        setProblemStatement(abstractTh.slice(0, 150));
-        setProposedSolution('นำเสนอแนวทางแก้ไขและพัฒนาระบบตามขอบเขตงานวิจัย');
-        setAiExtractedSuccess(true);
-      }
-    } catch (err) {
-      console.warn('AI Extraction failed, falling back:', err);
-      setProblemStatement(abstractTh.slice(0, 150));
-      setProposedSolution('นำเสนอแนวทางแก้ไขและพัฒนาระบบตามขอบเขตงานวิจัย');
-      setAiExtractedSuccess(true);
-    } finally {
-      setIsAiExtracting(false);
-    }
-  };
-
-  // Final Publish Handler
-  const handlePublish = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!titleTh.trim()) {
-      setErrorMessage('กรุณากรอกชื่อโครงงานภาษาไทย');
-      setCurrentStep(1);
-      return;
-    }
-
-    setIsSubmitting(true);
-    setErrorMessage('');
-
-    try {
-      const techArray = techStackInput.split(',').map(t => t.trim()).filter(Boolean);
-      const chosenDeptId = selectedDeptId || availableDepts[0]?.id || departments[0]?.id;
-
-      // Construct Reusable Assets
-      const assets: ReusableAsset[] = [];
-      if (githubUrl) {
-        assets.push({
-          id: 'asset-git-' + Date.now(),
-          project_id: '',
-          title: 'Source Code & Implementation',
-          asset_type: 'code_repo',
-          resource_url: githubUrl,
-          download_count: 0,
-          description: 'คลังซอร์สโค้ดและพิมพ์เขียวการพัฒนา'
-        });
-      }
-      if (datasetUrl) {
-        assets.push({
-          id: 'asset-data-' + Date.now(),
-          project_id: '',
-          title: 'Benchmark Dataset',
-          asset_type: 'dataset',
-          resource_url: datasetUrl,
-          download_count: 0,
-          description: 'ชุดข้อมูลตัวอย่างสำหรับเทรนและทดสอบโมเดล'
-        });
-      }
-      if (modelUrl) {
-        assets.push({
-          id: 'asset-model-' + Date.now(),
-          project_id: '',
-          title: 'Pre-trained AI Model / Weights',
-          asset_type: 'trained_model',
-          resource_url: modelUrl,
-          download_count: 0,
-          description: 'ไฟล์โมเดล AI ที่ฝึกฝนแล้วพร้อมใช้งาน'
-        });
-      }
-      if (paperUrl) {
-        assets.push({
-          id: 'asset-doc-' + Date.now(),
-          project_id: '',
-          title: 'Full Research Report & Blueprint (PDF)',
-          asset_type: 'document',
-          resource_url: paperUrl,
-          download_count: 0,
-          description: 'รายงานวิจัยฉบับสมบูรณ์และคู่มือการต่อยอด'
-        });
-      }
-
-      // Construct Extension Gaps
-      const gaps: ExtensionGap[] = [];
-      if (limitations || suggestedIdeas) {
-        gaps.push({
-          id: 'gap-' + Date.now(),
-          project_id: '',
-          gap_title: 'โอกาสและช่องทางต่อยอดสำหรับนิสิตรุ่นน้อง',
-          gap_description: suggestedIdeas || limitations || 'สามารถนำโมเดลและโค้ดไปปรับใช้กับอุปกรณ์อื่นๆ',
-          difficulty_level: 'Medium',
-          recommended_tech: techArray.length > 0 ? techArray : ['Python'],
-          potential_impact: 'ช่วยยกระดับและขยายผลงานวิจัยสู่การใช้งานจริง'
-        });
-      }
-
-      // Create new Project DNA
-      const newProject: Partial<Project> = {
-        title_th: titleTh,
-        title_en: titleEn || titleTh,
-        abstract_th: abstractTh || problemStatement,
-        abstract_en: titleEn,
-        academic_year: academicYear,
-        status: 'completed',
-        department_id: chosenDeptId,
-        cover_image_url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop&q=60',
-        dna_card: {
-          id: 'dna-' + Date.now(),
-          project_id: '',
-          problem_statement: problemStatement || 'มุ่งแก้ปัญหาในชุมชนและอุตสาหกรรม',
-          target_users: ['นิสิต มก.ฉกส.', 'เกษตรกรและชุมชน'],
-          tech_stack: techArray.length > 0 ? techArray : ['Python', 'AI'],
-          key_outcomes: [keyResults || 'ระบบทำงานได้ตามเป้าหมาย'],
-          limitations: [limitations || 'ข้อจำกัดตามขอบเขตงานวิจัย'],
-          advisor_name: advisorName || 'อาจารย์ที่ปรึกษาโครงงาน มก.ฉกส.',
-          student_authors: studentAuthors.filter(a => a.name.trim()).map(a => ({
-            name: a.name,
-            student_id: a.student_id,
-            email: a.email,
-            role: 'นิสิตผู้พัฒนา'
-          }))
-        },
-        assets,
-        gaps
-      };
-
-      await dnaService.createProject(newProject);
-      setSubmitSuccess(true);
-
-      setTimeout(() => {
-        router.push('/');
-      }, 1500);
-
-    } catch (err: any) {
-      console.error('Publish error:', err);
-      setErrorMessage(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const {
+    faculties,
+    departments,
+    availableDepts,
+    currentStep, setCurrentStep,
+    titleTh, setTitleTh, titleEn, setTitleEn,
+    selectedFacultyId, selectedDeptId, setSelectedDeptId, handleFacultyChange,
+    academicYear, setAcademicYear,
+    advisorName, setAdvisorName,
+    studentAuthors, handleAddAuthor, handleRemoveAuthor, handleAuthorChange,
+    abstractTh, setAbstractTh, problemStatement, setProblemStatement,
+    proposedSolution, setProposedSolution,
+    techStackInput, setTechStackInput, keyResults, setKeyResults,
+    isAiExtracting, aiExtractedSuccess, handleAiExtract,
+    githubUrl, setGithubUrl, datasetUrl, setDatasetUrl,
+    modelUrl, setModelUrl, paperUrl, setPaperUrl,
+    limitations, setLimitations, suggestedIdeas, setSuggestedIdeas,
+    isSubmitting, submitSuccess, errorMessage, setErrorMessage,
+    handlePublish
+  } = useSubmitForm();
 
   return (
     <div className="min-h-screen bg-[#F4F5F7] text-slate-900 flex flex-col justify-between font-sans">
@@ -286,9 +64,7 @@ export default function SubmitProjectPage() {
         </Link>
 
         <div className="flex items-center space-x-2">
-          <div className="w-7 h-7 rounded-lg bg-slate-950 text-amber-400 flex items-center justify-center">
-            <Dna className="w-4 h-4" />
-          </div>
+          <Logo className="w-8 h-8" />
           <span className="font-display font-bold text-sm text-slate-900">Project DNA</span>
           <span className="text-[11px] font-mono text-slate-400">· KU CSC Registry</span>
         </div>
@@ -708,7 +484,7 @@ export default function SubmitProjectPage() {
                 {/* GitHub Code Repo */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-slate-800 flex items-center space-x-1.5">
-                    <Github className="w-4 h-4 text-slate-700" />
+                    <GithubIcon className="w-4 h-4 text-slate-700" />
                     <span>ซอร์สโค้ด GitHub Repository URL</span>
                   </label>
                   <input
@@ -833,7 +609,7 @@ export default function SubmitProjectPage() {
                     <span>พร้อมเผยแพร่สู่คลังองค์ความรู้ มก.ฉกส.</span>
                   </div>
                   <p className="leading-relaxed text-slate-700">
-                    เมื่อกด <strong>"เผยแพร่ DNA โครงงาน"</strong> ข้อมูลของคุณจะปรากฏในหน้าสำรวจ DNA และระบบวิเคราะห์สายวิวัฒนาการ เพื่อให้นิสิต อาจารย์ และภาคชุมชนสามารถเข้าถึงได้ทันที
+                    เมื่อกด <strong>&quot;เผยแพร่ DNA โครงงาน&quot;</strong> ข้อมูลของคุณจะปรากฏในหน้าสำรวจ DNA และระบบวิเคราะห์สายวิวัฒนาการ เพื่อให้นิสิต อาจารย์ และภาคชุมชนสามารถเข้าถึงได้ทันที
                   </p>
                 </div>
 

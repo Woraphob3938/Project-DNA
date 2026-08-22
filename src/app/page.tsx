@@ -6,17 +6,17 @@ import {
 } from '@/components/projects/DnaCard';
 import { ProjectDetailDrawer } from '@/components/projects/ProjectDetailDrawer';
 import { LineageVisualizer } from '@/components/lineage/LineageVisualizer';
-import { ChallengesHub } from '@/components/challenges/ChallengesHub';
 import { ProjectAnalytics } from '@/components/analytics/ProjectAnalytics';
 import { InceptionStudioModal } from '@/components/projects/InceptionStudioModal';
 import { QuickResourceModal } from '@/components/projects/QuickResourceModal';
 import { CreateDnaCardModal } from '@/components/ingestion/CreateDnaCardModal';
-import { AiMatchModal } from '@/components/discovery/AiMatchModal';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 
 import { Project, Faculty, Department, Challenge, ProjectLineageEdge, ActiveTab, UserMatchProfile, AiMatchResult } from '@/types/dna';
 import { dnaService } from '@/lib/dnaService';
+import { isSupabaseConfigured } from '@/lib/supabaseClient';
+import { useAuthGate } from '@/hooks/useAuthGate';
 import { 
   Sparkles, 
   RefreshCw, 
@@ -38,6 +38,12 @@ export default function Home() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // True when the DB is configured but unreachable — UI shows a fallback notice
+  const [isFallbackData, setIsFallbackData] = useState(false);
+
+  // Gated actions (bookmark) bounce signed-out visitors to /login
+  const { requireLogin } = useAuthGate();
+
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFaculty, setSelectedFaculty] = useState<string | null>(null);
@@ -46,8 +52,7 @@ export default function Home() {
   const [resourceFilter, setResourceFilter] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
 
-  // AI Matchmaker State
-  const [isAiMatchModalOpen, setIsAiMatchModalOpen] = useState(false);
+  // AI Search State
   const [aiMatchResults, setAiMatchResults] = useState<AiMatchResult[] | null>(null);
   const [aiCuratedSummary, setAiCuratedSummary] = useState<string | null>(null);
   const [isAiSearching, setIsAiSearching] = useState(false);
@@ -83,6 +88,9 @@ export default function Home() {
         setDepartments(deptsData);
         setLineages(lineagesData);
         setChallenges(challengesData);
+
+        // Surface fallback mode when Supabase is configured but unreachable
+        setIsFallbackData(isSupabaseConfigured && dnaService.getDataSource() === 'seed');
       } catch (err) {
         console.error('Failed to load initial data:', err);
       } finally {
@@ -211,9 +219,10 @@ export default function Home() {
     return 0;
   });
 
-  // Favorite toggle handler
+  // Favorite toggle handler — requires login
   const handleToggleFavorite = (projectId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    if (!requireLogin('/')) return;
     setFavorites(prev =>
       prev.includes(projectId) ? prev.filter(id => id !== projectId) : [...prev, projectId]
     );
@@ -259,7 +268,6 @@ export default function Home() {
           setSelectedYear={setSelectedYear}
           resourceFilter={resourceFilter}
           setResourceFilter={setResourceFilter}
-          onOpenAiMatchModal={() => setIsAiMatchModalOpen(true)}
           isAiMatchActive={Boolean(aiMatchResults && aiMatchResults.length > 0)}
           onClearAiMatch={() => {
             setAiMatchResults(null);
@@ -269,6 +277,19 @@ export default function Home() {
           onOpenCreateModal={() => setIsCreateModalOpen(true)}
           totalProjects={projects.length}
         />
+
+        {/* Fallback-data notice — the DB is configured but unreachable */}
+        {isFallbackData && (
+          <div className="px-6 md:px-8 pt-4">
+            <div className="max-w-7xl mx-auto flex items-center space-x-2.5 text-xs font-medium text-amber-900 bg-amber-50 border border-amber-300 rounded-xl px-4 py-2.5">
+              <span aria-hidden="true">⚠️</span>
+              <span>
+                ไม่สามารถเชื่อมต่อฐานข้อมูลได้ — กำลังแสดงข้อมูลตัวอย่าง (Seed Data)
+                โครงงานที่บันทึกเพิ่มอาจไม่ถูกเก็บถาวร
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Tab View Switching */}
         <main className="flex-1 overflow-x-hidden p-6 md:p-8">
@@ -429,26 +450,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* TAB 3: Community & Regional Challenges Hub */}
-          {activeTab === 'challenges' && (
-            <div className="max-w-7xl mx-auto space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="font-display text-xl font-bold text-slate-900">โจทย์จริงจากชุมชนและอุตสาหกรรม (Real-world Challenges)</h2>
-                  <p className="text-xs text-slate-500 mt-1">
-                    รับโจทย์ปัญหาจริงจาก จ.สกลนคร และกลุ่มผู้ประกอบการ เพื่อนำไปทำเป็นโครงงานที่สร้างผลกระทบจริง
-                  </p>
-                </div>
-              </div>
-
-              <ChallengesHub
-                challenges={challenges}
-                projects={projects}
-                onSelectProject={(project) => setSelectedProject(project)}
-              />
-            </div>
-          )}
-
           {/* TAB 4: Analytics Dashboard */}
           {activeTab === 'analytics' && (
             <div className="max-w-7xl mx-auto space-y-6">
@@ -511,25 +512,6 @@ export default function Home() {
         departments={departments}
         faculties={faculties}
         onSuccessCreate={handleSuccessCreate}
-      />
-
-      {/* 7. AI Matchmaker Filter Modal */}
-      <AiMatchModal
-        isOpen={isAiMatchModalOpen}
-        onClose={() => setIsAiMatchModalOpen(false)}
-        onApplyMatch={(profile, results) => {
-          setActiveUserProfile(profile);
-          setAiMatchResults(results);
-          if (profile.query) {
-            setAiCuratedSummary(`AI ได้ทำการวิเคราะห์และคัดกรองพิมพ์เขียวโครงงานที่เกี่ยวข้องกับ "${profile.query}" เรียงลำดับตามความสอดคล้องของเทคโนโลยีและพิมพ์เขียว`);
-          }
-        }}
-        onClearMatch={() => {
-          setAiMatchResults(null);
-          setAiCuratedSummary(null);
-          setActiveUserProfile(null);
-        }}
-        isMatchActive={Boolean(aiMatchResults && aiMatchResults.length > 0)}
       />
 
     </div>

@@ -1,7 +1,8 @@
 /* Hallmark · refined design tokens & anti-slop typography */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Tailwind v3 compatibility — keeps the legacy JS config (theme extensions) */
+@config "../../tailwind.config.ts";
 
 :root {
   --font-display: var(--font-prompt), system-ui, sans-serif;
@@ -64,4 +65,23 @@ h1, h2, h3, h4, h5, h6, .font-display {
 .card-elevation:hover {
   border-color: #cbd5e1;
   box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.08), 0 2px 6px -2px rgba(15, 23, 42, 0.04);
+}
+
+/* ── Search-hint marquee · slow left→right drift ─────────────────────
+ * Track holds the hint phrases duplicated exactly twice; sliding from
+ * -50% → 0 loops seamlessly while the text drifts rightward. */
+@keyframes dna-marquee-right {
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(0); }
+}
+
+.dna-marquee-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: dna-marquee-right 25s linear infinite;
+  will-change: transform;
+}
+
+.dna-marquee-track > span {
+  padding-right: 4rem;
 }

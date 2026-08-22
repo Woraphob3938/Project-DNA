@@ -4,13 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { 
   Compass, 
   GitFork, 
-  Target, 
   BarChart3, 
   Bookmark, 
-  Dna, 
   ArrowUp
 } from 'lucide-react';
 import { ActiveTab } from '@/types/dna';
+import { Logo } from '@/components/layout/Logo';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -60,11 +59,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: GitFork,
     },
     {
-      id: 'challenges' as ActiveTab,
-      label: 'โจทย์จริง & ความต้องการ',
-      icon: Target,
-    },
-    {
       id: 'analytics' as ActiveTab,
       label: 'สถิติคลังโครงงาน',
       icon: BarChart3,
@@ -102,7 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             title="Project DNA - เลื่อนกลับด้านบน"
             aria-label="Home and scroll to top"
           >
-            <Dna className="w-6 h-6 stroke-[2.5]" />
+            <Logo className="w-8 h-8" />
           </button>
           <span className="font-display text-[11px] font-bold tracking-wider text-slate-950">DNA</span>
         </div>

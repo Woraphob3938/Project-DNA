@@ -2,12 +2,28 @@ import { Project, Faculty, Department, Challenge, ProjectLineageEdge } from '../
 import { SEED_PROJECTS, SEED_FACULTIES, SEED_DEPARTMENTS, SEED_CHALLENGES, SEED_LINEAGES } from '../data/seedData';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 
+/** Where a read's data came from — lets the UI warn when falling back to seeds. */
+export type DataSource = 'unknown' | 'supabase' | 'seed';
+
 class DnaService {
   private inMemoryProjects: Project[] = [...SEED_PROJECTS];
   private inMemoryFaculties: Faculty[] = [...SEED_FACULTIES];
   private inMemoryDepartments: Department[] = [...SEED_DEPARTMENTS];
   private inMemoryChallenges: Challenge[] = [...SEED_CHALLENGES];
   private inMemoryLineages: ProjectLineageEdge[] = [...SEED_LINEAGES];
+
+  private lastFetchSource: DataSource = 'unknown';
+  private lastSyncWarning: string | null = null;
+
+  /** Where the most recent read came from ('seed' = DB unreachable). */
+  getDataSource(): DataSource {
+    return this.lastFetchSource;
+  }
+
+  /** Non-fatal message from the most recent write attempt, if any. */
+  getLastSyncWarning(): string | null {
+    return this.lastSyncWarning;
+  }
 
   getInitialProjects(): Project[] {
     return this.inMemoryProjects.map(proj => {
@@ -44,11 +60,15 @@ class DnaService {
     if (isSupabaseConfigured && supabase) {
       try {
         const { data, error } = await supabase.from('faculties').select('*');
-        if (!error && data && data.length > 0) return data as Faculty[];
+        if (!error && data && data.length > 0) {
+          this.lastFetchSource = 'supabase';
+          return data as Faculty[];
+        }
       } catch (e) {
         console.warn('Supabase fetch failed, falling back to seed data:', e);
       }
     }
+    this.lastFetchSource = 'seed';
     return this.inMemoryFaculties;
   }
 
@@ -57,11 +77,15 @@ class DnaService {
     if (isSupabaseConfigured && supabase) {
       try {
         const { data, error } = await supabase.from('departments').select('*, faculty:faculties(*)');
-        if (!error && data && data.length > 0) return data as Department[];
+        if (!error && data && data.length > 0) {
+          this.lastFetchSource = 'supabase';
+          return data as Department[];
+        }
       } catch (e) {
         console.warn('Supabase fetch failed, falling back to seed data:', e);
       }
     }
+    this.lastFetchSource = 'seed';
     return this.inMemoryDepartments.map(d => ({
       ...d,
       faculty: this.inMemoryFaculties.find(f => f.id === d.faculty_id)
@@ -83,6 +107,7 @@ class DnaService {
           `);
 
         if (!projErr && projData && projData.length > 0) {
+          this.lastFetchSource = 'supabase';
           return projData as Project[];
         }
       } catch (e) {
@@ -91,6 +116,7 @@ class DnaService {
     }
 
     // Attach department and faculty objects to in-memory projects
+    this.lastFetchSource = 'seed';
     return this.inMemoryProjects.map(proj => {
       const dept = this.inMemoryDepartments.find(d => d.id === proj.department_id);
       const faculty = dept ? this.inMemoryFaculties.find(f => f.id === dept.faculty_id) : undefined;
@@ -112,11 +138,15 @@ class DnaService {
     if (isSupabaseConfigured && supabase) {
       try {
         const { data, error } = await supabase.from('project_lineages').select('*');
-        if (!error && data && data.length > 0) return data as ProjectLineageEdge[];
+        if (!error && data && data.length > 0) {
+          this.lastFetchSource = 'supabase';
+          return data as ProjectLineageEdge[];
+        }
       } catch (e) {
         console.warn('Supabase fetch failed, falling back to seed data:', e);
       }
     }
+    this.lastFetchSource = 'seed';
     return this.inMemoryLineages;
   }
 
@@ -125,11 +155,15 @@ class DnaService {
     if (isSupabaseConfigured && supabase) {
       try {
         const { data, error } = await supabase.from('challenges').select('*');
-        if (!error && data && data.length > 0) return data as Challenge[];
+        if (!error && data && data.length > 0) {
+          this.lastFetchSource = 'supabase';
+          return data as Challenge[];
+        }
       } catch (e) {
         console.warn('Supabase fetch failed, falling back to seed data:', e);
       }
     }
+    this.lastFetchSource = 'seed';
     return this.inMemoryChallenges;
   }
 
@@ -172,7 +206,9 @@ class DnaService {
 
   // Create or Ingest New Project DNA
   async createProject(newProject: Partial<Project>): Promise<Project> {
-    const id = 'proj-' + (this.inMemoryProjects.length + 1);
+    // Timestamp-based id — `length + 1` produces duplicate ids whenever rows
+    // are removed or two browsers create projects at the same time.
+    const id = 'proj-' + Date.now().toString(36);
     const dept = this.inMemoryDepartments.find(d => d.id === newProject.department_id) || this.inMemoryDepartments[0];
     const faculty = this.inMemoryFaculties.find(f => f.id === dept.faculty_id);
 
@@ -195,11 +231,21 @@ class DnaService {
       gaps: newProject.gaps || []
     };
 
-    this.inMemoryProjects.unshift(project);
+    // Mutating this singleton is only safe in the browser, where every
+    // visitor gets their own instance. On the server it is shared across ALL
+    // requests and must stay read-only.
+    if (typeof window !== 'undefined') {
+      this.inMemoryProjects.unshift(project);
+    }
 
     // If Supabase is connected, sync full relational records
     if (isSupabaseConfigured && supabase) {
+      this.lastSyncWarning = null;
       try {
+        // Stamp ownership with the signed-in user (RLS enforces this too)
+        const { data: userData } = await supabase.auth.getUser();
+        const ownerId = userData.user?.id;
+
         await supabase.from('projects').insert({
           id: project.id,
           title_th: project.title_th,
@@ -209,7 +255,8 @@ class DnaService {
           academic_year: project.academic_year,
           status: project.status,
           department_id: project.department_id,
-          cover_image_url: project.cover_image_url
+          cover_image_url: project.cover_image_url,
+          ...(ownerId ? { owner_id: ownerId } : {})
         });
 
         if (project.dna_card) {
@@ -257,11 +304,107 @@ class DnaService {
           await supabase.from('extension_gaps').insert(gapRows);
         }
       } catch (e) {
+        this.lastSyncWarning = e instanceof Error ? e.message : String(e);
         console.warn('Supabase insert failed:', e);
       }
     }
 
     return project;
+  }
+
+  // Owner edit — merge a patch over an existing project and sync to Supabase.
+  // Returns the updated project, or null when the id is unknown.
+  async updateProject(
+    projectId: string,
+    patch: Partial<Pick<Project, 'title_th' | 'title_en' | 'abstract_th' | 'abstract_en' | 'academic_year' | 'status'>> & {
+      dna_card?: Partial<Pick<NonNullable<Project['dna_card']>,
+        'problem_statement' | 'tech_stack' | 'key_outcomes' | 'limitations' |
+        'advisor_name' | 'repository_url' | 'demo_url' | 'dataset_description'>>;
+    }
+  ): Promise<Project | null> {
+    const all = await this.getProjects();
+    const existing = all.find(p => p.id === projectId);
+    if (!existing) return null;
+
+    this.lastSyncWarning = null;
+
+    const { dna_card: dnaPatch, ...topPatch } = patch;
+    const updated: Project = {
+      ...existing,
+      ...topPatch,
+      dna_card: existing.dna_card
+        ? { ...existing.dna_card, ...(dnaPatch || {}) }
+        : existing.dna_card
+    };
+
+    // Keep the browser-side cache fresh (client-only mutation)
+    if (typeof window !== 'undefined') {
+      const i = this.inMemoryProjects.findIndex(p => p.id === projectId);
+      if (i >= 0) this.inMemoryProjects[i] = updated;
+    }
+
+    // Sync to Supabase when configured
+    if (isSupabaseConfigured && supabase) {
+      try {
+        // `.select()` makes PostgREST return the affected rows so a silent
+        // RLS drop (0 rows matched = no permission) is detectable.
+        let query = supabase
+          .from('projects')
+          .update({
+            title_th: updated.title_th,
+            title_en: updated.title_en,
+            abstract_th: updated.abstract_th,
+            abstract_en: updated.abstract_en,
+            academic_year: updated.academic_year,
+            status: updated.status
+          })
+          .eq('id', projectId)
+          .select();
+
+        const { data: updRows, error: updErr } = await query;
+        if (updErr) throw updErr;
+
+        if (!updRows || updRows.length === 0) {
+          this.lastSyncWarning = 'ไม่มีสิทธิ์แก้ไขโครงงานนี้ในฐานข้อมูล (ไม่ใช่เจ้าของ)';
+        }
+
+        if (updated.dna_card) {
+          await supabase.from('dna_cards').update({
+            problem_statement: updated.dna_card.problem_statement || '',
+            tech_stack: updated.dna_card.tech_stack || [],
+            key_outcomes: updated.dna_card.key_outcomes || [],
+            limitations: updated.dna_card.limitations || [],
+            advisor_name: updated.dna_card.advisor_name || '',
+            repository_url: updated.dna_card.repository_url || '',
+            demo_url: updated.dna_card.demo_url || '',
+            dataset_description: updated.dna_card.dataset_description || ''
+          }).eq('project_id', projectId);
+        }
+      } catch (e) {
+        this.lastSyncWarning = e instanceof Error ? e.message : String(e);
+        console.warn('Supabase update failed:', e);
+      }
+    }
+
+    return updated;
+  }
+
+  // Ids of projects owned by the signed-in user. Returns [] when Supabase is
+  // unavailable or nobody is signed in — callers fall back to the local
+  // ownership registry in that case.
+  async getOwnedProjectIds(): Promise<string[]> {
+    if (!isSupabaseConfigured || !supabase) return [];
+
+    const { data: userData, error: userErr } = await supabase.auth.getUser();
+    if (userErr || !userData.user) return [];
+
+    const { data, error } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('owner_id', userData.user.id);
+
+    if (error || !data) return [];
+    return data.map(row => row.id as string);
   }
 }
 

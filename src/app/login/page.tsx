@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/utils/supabase/client';
 import { 
-  Dna, 
   ArrowLeft, 
   Lock, 
   User, 
@@ -12,23 +12,82 @@ import {
   CheckCircle2, 
   AlertCircle
 } from 'lucide-react';
+import { Logo } from '@/components/layout/Logo';
+
+// University email domains that are allowed to sign in
+const ALLOWED_KU_DOMAINS = ['student.ku.ac.th', 'ku.ac.th', 'ku.th'];
+const STUDENT_EMAIL_DOMAIN = 'student.ku.ac.th';
+
+/**
+ * Normalize a KU CSC student ID into the canonical "b + digits" form.
+ * Accepts: b6521600000 / B65-216-0000 / 6521600000
+ */
+function normalizeStudentId(raw: string): string | null {
+  const cleaned = raw.trim().toLowerCase().replace(/[\s.\-_()/]/g, '');
+  if (/^b\d{9,11}$/.test(cleaned)) return cleaned;
+  if (/^\d{9,11}$/.test(cleaned)) return `b${cleaned}`;
+  return null;
+}
+
+function getEmailDomain(email: string): string {
+  return email.split('@')[1]?.toLowerCase().trim() ?? '';
+}
+
+function translateAuthError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes('invalid login credentials')) return 'รหัสนิสิต / อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาลองอีกครั้ง';
+  if (m.includes('user already registered')) return 'รหัสนี้สมัครใช้งานแล้ว กรุณาเข้าสู่ระบบแทนการสมัครใหม่';
+  if (m.includes('password should be at least')) return 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร';
+  if (m.includes('email not confirmed')) return 'กรุณายืนยันตัวตนผ่านอีเมลก่อนเข้าสู่ระบบ';
+  if (m.includes('rate limit') || m.includes('too many')) return 'พยายามบ่อยเกินไป กรุณารอสักครู่แล้วลองอีกครั้ง';
+  if (m.includes('signup') && m.includes('not allowed')) return 'ระบบปิดการสมัครสมาชิกชั่วคราว กรุณาติดต่อผู้ดูแลระบบ';
+  return `เกิดข้อผิดพลาด: ${message}`;
+}
 
 export default function LoginPage() {
   const router = useRouter();
-  const [accountType, setAccountType] = useState<'student' | 'faculty' | 'guest'>('student');
+  const [accountType, setAccountType] = useState<'student' | 'faculty'>('student');
+  const [isSignUp, setIsSignUp] = useState(false);
   const [identifier, setIdentifier] = useState('');
+  const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   
   // 8-state handling: default, loading, error, success
   const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'success'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [infoMessage, setInfoMessage] = useState('');
+
+  // Surface errors passed back from the OAuth callback (e.g. non-KU email)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get('error');
+    if (err === 'domain') {
+      setStatus('error');
+      setErrorMessage('อีเมลนี้ไม่ใช่อีเมลของมหาวิทยาลัยเกษตรศาสตร์ กรุณาใช้อีเมล @student.ku.ac.th, @ku.ac.th หรือ @ku.th เท่านั้น');
+    } else if (err === 'oauth') {
+      setStatus('error');
+      setErrorMessage('การเข้าสู่ระบบด้วย Google ไม่สำเร็จ กรุณาลองอีกครั้ง');
+    }
+  }, []);
+
+  const handleSuccess = () => {
+    setStatus('success');
+    setTimeout(() => {
+      // Return the visitor to the gated action that sent them here.
+      // Only same-app absolute paths are allowed (open-redirect guard).
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get('next');
+      router.push(next && next.startsWith('/') && !next.startsWith('//') ? next : '/');
+      router.refresh();
+    }, 800);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!identifier.trim()) {
       setStatus('error');
-      setErrorMessage('กรุณากรอกบัญชีผู้ใช้ KU Account หรือรหัสนิสิต');
+      setErrorMessage(accountType === 'student' ? 'กรุณากรอกรหัสนิสิต' : 'กรุณากรอกอีเมลมหาวิทยาลัย');
       return;
     }
     if (!password) {
@@ -39,24 +98,79 @@ export default function LoginPage() {
 
     setStatus('loading');
     setErrorMessage('');
+    setInfoMessage('');
 
-    // Simulate authentic KU CSC authentication
-    setTimeout(() => {
-      setStatus('success');
-      setTimeout(() => {
-        router.push('/');
-      }, 900);
-    }, 1100);
+    try {
+      const supabase = createClient();
+
+      if (accountType === 'student') {
+        // ---- Student flow: รหัสนิสิต มก.สกลนคร ----
+        const studentId = normalizeStudentId(identifier);
+        if (!studentId) {
+          throw new Error('รูปแบบรหัสนิสิตไม่ถูกต้อง ตัวอย่าง: b6521600000 หรือ 6521600000');
+        }
+        if (password.length < 6) {
+          throw new Error('รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร');
+        }
+
+        // Supabase Auth ใช้อีเมลเป็น identifier — map รหัสนิสิตเป็นอีเมลสังเคราะห์ของวิทยาเขต
+        const email = `${studentId}@${STUDENT_EMAIL_DOMAIN}`;
+
+        if (isSignUp) {
+          if (!fullName.trim()) {
+            throw new Error('กรุณากรอกชื่อ-นามสกุล');
+          }
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: { data: { full_name: fullName.trim(), student_id: studentId } },
+          });
+          if (error) throw error;
+          if (data.session) {
+            handleSuccess(); // auto-confirm enabled — signed in immediately
+          } else {
+            setStatus('idle');
+            setInfoMessage('สมัครบัญชีสำเร็จ! หาระบบเปิดใช้การยืนยันอีเมล กรุณาตรวจสอบอีเมลเพื่อยืนยันตัวตนก่อนเข้าสู่ระบบ');
+          }
+        } else {
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          handleSuccess();
+        }
+      } else {
+        // ---- Faculty flow: อีเมลมหาวิทยาลัย ----
+        const email = identifier.trim().toLowerCase();
+        if (!ALLOWED_KU_DOMAINS.includes(getEmailDomain(email))) {
+          throw new Error('กรุณาใช้อีเมลมหาวิทยาลัยเกษตรศาสตร์เท่านั้น (@ku.ac.th หรือ @ku.th)');
+        }
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        handleSuccess();
+      }
+    } catch (err) {
+      setStatus('error');
+      setErrorMessage(err instanceof Error ? translateAuthError(err.message) : 'เกิดข้อผิดพลาดที่ไม่รู้จัก กรุณาลองอีกครั้ง');
+    }
   };
 
-  const handleSSOGoogle = () => {
+  const handleSSOGoogle = async () => {
     setStatus('loading');
-    setTimeout(() => {
-      setStatus('success');
-      setTimeout(() => {
-        router.push('/');
-      }, 800);
-    }, 1000);
+    setErrorMessage('');
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          // Callback route verifies the email is a KU address before allowing entry
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) throw error;
+      // Browser will redirect to Google — nothing else to do here
+    } catch {
+      setStatus('error');
+      setErrorMessage('ไม่สามารถเชื่อมต่อ Google Sign-In ได้ กรุณาลองอีกครั้ง');
+    }
   };
 
   return (
@@ -73,9 +187,7 @@ export default function LoginPage() {
         </Link>
 
         <div className="flex items-center space-x-2">
-          <div className="w-7 h-7 rounded-lg bg-slate-950 text-amber-400 flex items-center justify-center">
-            <Dna className="w-4 h-4" />
-          </div>
+          <Logo className="w-8 h-8" />
           <span className="font-display font-bold text-sm text-slate-900">Project DNA</span>
           <span className="text-[11px] font-mono text-slate-400">· มก.ฉกส.</span>
         </div>
@@ -91,7 +203,7 @@ export default function LoginPage() {
               เข้าสู่ระบบ (Sign In)
             </h1>
             <p className="text-xs text-slate-500 mt-1">
-              กรุณาเข้าสู่ระบบด้วยบัญชี KU Account หรืออีเมลองค์กร @ku.th
+              เข้าสู่ระบบด้วยรหัสนิสิต มก.สกลนคร หรือ Google อีเมลมหาวิทยาลัย (@student.ku.ac.th / @ku.ac.th / @ku.th)
             </p>
           </div>
 
@@ -99,36 +211,25 @@ export default function LoginPage() {
           <div className="flex p-1 bg-slate-100 rounded-xl text-xs font-semibold text-slate-600">
             <button
               type="button"
-              onClick={() => setAccountType('student')}
+              onClick={() => { setAccountType('student'); setIsSignUp(false); }}
               className={`flex-1 py-1.5 rounded-lg transition-colors ${
                 accountType === 'student'
                   ? 'bg-white text-slate-950 font-bold shadow-xs'
                   : 'hover:text-slate-900'
               }`}
             >
-              นิสิต มก. (Student)
+              นิสิต มก.สกลนคร (Student)
             </button>
             <button
               type="button"
-              onClick={() => setAccountType('faculty')}
+              onClick={() => { setAccountType('faculty'); setIsSignUp(false); }}
               className={`flex-1 py-1.5 rounded-lg transition-colors ${
                 accountType === 'faculty'
                   ? 'bg-white text-slate-950 font-bold shadow-xs'
                   : 'hover:text-slate-900'
               }`}
             >
-              อาจารย์ / ที่ปรึกษา
-            </button>
-            <button
-              type="button"
-              onClick={() => setAccountType('guest')}
-              className={`flex-1 py-1.5 rounded-lg transition-colors ${
-                accountType === 'guest'
-                  ? 'bg-white text-slate-950 font-bold shadow-xs'
-                  : 'hover:text-slate-900'
-              }`}
-            >
-              บุคคลทั่วไป (Guest)
+              อาจารย์ / ที่ปรึกษา (Email)
             </button>
           </div>
 
@@ -185,13 +286,40 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Login Form */}
+          {infoMessage && status !== 'error' && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start space-x-2 text-xs text-amber-800 font-medium">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+              <span>{infoMessage}</span>
+            </div>
+          )}
+
+          {/* Login / Sign-up Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             
-            {/* Identifier (KU Account / Student ID) */}
+            {/* Full Name (only when students register) */}
+            {accountType === 'student' && isSignUp && (
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-800">
+                  ชื่อ-นามสกุล
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="เช่น สมชาย ใจดี"
+                    className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 focus:bg-white text-slate-900 placeholder-slate-400 transition-colors"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Identifier (Student ID / KU Email) */}
             <div className="space-y-1">
               <label className="block text-xs font-bold text-slate-800">
-                {accountType === 'student' ? 'รหัสนิสิต หรือ KU Mail (@ku.th)' : 'บัญชีผู้ใช้ KU Account / อีเมล'}
+                {accountType === 'student' ? 'รหัสนิสิต มก.สกลนคร' : 'อีเมลมหาวิทยาลัย (@ku.ac.th / @ku.th)'}
               </label>
               <div className="relative">
                 <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -199,7 +327,7 @@ export default function LoginPage() {
                   type="text"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder={accountType === 'student' ? 'เช่น b6521600000 หรือ firstname.l@ku.th' : 'เช่น username หรือ firstname.l@ku.th'}
+                  placeholder={accountType === 'student' ? 'เช่น b6521600000 หรือ 6521600000' : 'เช่น somchai.j@ku.ac.th'}
                   className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 focus:bg-white text-slate-900 placeholder-slate-400 transition-colors"
                   required
                 />
@@ -250,25 +378,47 @@ export default function LoginPage() {
                 </span>
               ) : (
                 <>
-                  <span>เข้าสู่ระบบ</span>
+                  <span>{accountType === 'student' && isSignUp ? 'สมัครบัญชีใหม่ด้วยรหัสนิสิต' : 'เข้าสู่ระบบ'}</span>
                   <ArrowRight className="w-4 h-4 stroke-[2.5]" />
                 </>
               )}
             </button>
           </form>
 
-          {/* Registration Hint */}
-          <div className="pt-4 border-t border-slate-100 text-center text-xs text-slate-500">
-            ยังไม่มีบัญชี หรือเป็นนิสิตใหม่?{' '}
-            <a
-              href="https://accounts.ku.th"
-              target="_blank"
-              rel="noreferrer"
-              className="font-bold text-slate-900 hover:text-amber-700 transition-colors"
-            >
-              เปิดใช้งาน KU Account
-            </a>
-          </div>
+          {/* Sign-in / Sign-up Toggle (students only) */}
+          {accountType === 'student' && (
+            <div className="pt-4 border-t border-slate-100 text-center text-xs text-slate-500">
+              {isSignUp ? (
+                <>
+                  มีบัญชีอยู่แล้ว?{' '}
+                  <button
+                    type="button"
+                    onClick={() => { setIsSignUp(false); setStatus('idle'); setInfoMessage(''); }}
+                    className="font-bold text-slate-900 hover:text-amber-700 transition-colors underline underline-offset-2"
+                  >
+                    เข้าสู่ระบบที่นี่
+                  </button>
+                </>
+              ) : (
+                <>
+                  นิสิตใหม่ยังไม่มีบัญชี?{' '}
+                  <button
+                    type="button"
+                    onClick={() => { setIsSignUp(true); setStatus('idle'); setInfoMessage(''); }}
+                    className="font-bold text-slate-900 hover:text-amber-700 transition-colors underline underline-offset-2"
+                  >
+                    สมัครบัญชีด้วยรหัสนิสิต
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {accountType === 'faculty' && (
+            <div className="pt-4 border-t border-slate-100 text-center text-xs text-slate-500">
+              บัญชีอาจารย์สร้างโดยผู้ดูแลระบบเท่านั้น กรุณาติดต่อคณะกรรมการโครงงานหากเข้าสู่ระบบไม่ได้
+            </div>
+          )}
 
         </div>
       </main>

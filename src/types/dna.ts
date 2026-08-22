@@ -106,7 +106,7 @@ export interface Project {
   matched_challenge_ids?: string[];
 }
 
-export type ActiveTab = 'explore' | 'lineage' | 'challenges' | 'analytics' | 'favorites';
+export type ActiveTab = 'explore' | 'lineage' | 'analytics' | 'favorites';
 
 export interface AiMatchResult {
   project_id: string;
