@@ -20,7 +20,6 @@ import { useAuthGate } from '@/hooks/useAuthGate';
 import { useFavorites } from '@/hooks/useFavorites';
 import { Pagination } from '@/components/projects/Pagination';
 import { HomeSkeleton } from '@/components/projects/HomeSkeleton';
-import { AiAnalysisProgress } from '@/components/projects/AiAnalysisProgress';
 import { 
   Sparkles, 
   RefreshCw, 
@@ -62,8 +61,6 @@ export default function Home() {
   const [aiMatchResults, setAiMatchResults] = useState<AiMatchResult[] | null>(null);
   const [aiCuratedSummary, setAiCuratedSummary] = useState<string | null>(null);
   const [isAiSearching, setIsAiSearching] = useState(false);
-  const [aiProgress, setAiProgress] = useState(0);
-  const [aiQueryText, setAiQueryText] = useState('');
   const [activeUserProfile, setActiveUserProfile] = useState<UserMatchProfile | null>(null);
 
   // Selected Project for Drawer & Modals
@@ -115,14 +112,6 @@ export default function Home() {
     if (!q) return;
 
     setIsAiSearching(true);
-    setAiQueryText(q);
-    setAiProgress(0);
-
-    // Live-feel percentage while the server computes: advances quickly at
-    // first then eases toward completion; snaps to 100% on response.
-    const progressTimer = window.setInterval(() => {
-      setAiProgress((prev) => Math.min(93, prev + Math.max(0.6, (93 - prev) * 0.09)));
-    }, 120);
 
     const profile: UserMatchProfile = {
       query: q,
@@ -140,7 +129,6 @@ export default function Home() {
 
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
-        setAiProgress(100);
         setAiMatchResults(data.data);
         setAiCuratedSummary(data.summary || `AI คัดกรองและจับคู่โครงงานที่สอดคล้องกับ "${q}" พบโครงงานที่มีความเหมาะสมสูงพร้อมพิมพ์เขียวให้ศึกษา`);
         setActiveUserProfile(profile);
@@ -148,10 +136,7 @@ export default function Home() {
     } catch (err) {
       console.warn('AI search trigger error:', err);
     } finally {
-      window.clearInterval(progressTimer);
-      setAiProgress(100);
-      // Brief beat so visitors see the completed bar before it unmounts
-      setTimeout(() => setIsAiSearching(false), 400);
+      setIsAiSearching(false);
     }
   };
 
@@ -324,13 +309,6 @@ export default function Home() {
 
         {/* Tab View Switching */}
         <main className="flex-1 overflow-x-hidden p-6 md:p-8">
-
-          {/* Live AI analysis progress — visible on every tab while running */}
-          {isAiSearching && (
-            <div className="max-w-7xl mx-auto mb-6">
-              <AiAnalysisProgress progress={aiProgress} query={aiQueryText} />
-            </div>
-          )}
           
           {/* TAB 1: Explore / Catalog Grid & Detail Panel */}
           {(activeTab === 'explore' || activeTab === 'favorites') && (
