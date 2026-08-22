@@ -565,14 +565,16 @@ export default function Home() {
         onClose={() => setQuickModalProject(null)}
       />
 
-      {/* 6. Create Project Modal */}
-      <CreateDnaCardModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        departments={departments}
-        faculties={faculties}
-        onSuccessCreate={handleSuccessCreate}
-      />
+      {/* 6. Create Project Modal — mounted only while open so each session starts with a fresh form */}
+      {isCreateModalOpen && (
+        <CreateDnaCardModal
+          isOpen
+          onClose={() => setIsCreateModalOpen(false)}
+          departments={departments}
+          faculties={faculties}
+          onSuccessCreate={handleSuccessCreate}
+        />
+      )}
 
     </div>
   );
