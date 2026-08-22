@@ -18,7 +18,7 @@ import { dnaService } from '@/lib/dnaService';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { useAuthGate } from '@/hooks/useAuthGate';
 import { useFavorites } from '@/hooks/useFavorites';
-import { useMyProjectIds, removeMyProjectId } from '@/hooks/useMyProjects';
+import { useMyProjectIds, removeMyProjectId, addMyProjectId } from '@/hooks/useMyProjects';
 import { Pagination } from '@/components/projects/Pagination';
 import { HomeSkeleton } from '@/components/projects/HomeSkeleton';
 import { 
@@ -275,6 +275,7 @@ export default function Home() {
   // Add new project handler
   const handleSuccessCreate = async (newProjData: Partial<Project>) => {
     const created = await dnaService.createProject(newProjData);
+    addMyProjectId(created.id);
     setProjects(prev => [created, ...prev]);
     setSelectedProject(created);
     setActiveTab('explore');

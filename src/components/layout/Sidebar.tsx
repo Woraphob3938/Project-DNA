@@ -7,6 +7,7 @@ import {
   BarChart3, 
   Bookmark, 
   FolderOpen,
+  Plus,
   ArrowUp
 } from 'lucide-react';
 import { ActiveTab } from '@/types/dna';
@@ -152,6 +153,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
             );
           })}
         </nav>
+
+        {/* Add Project — primary creation entry point */}
+        <div className="w-full px-2">
+          <button
+            onClick={onOpenCreateModal}
+            title="เพิ่มโครงงานใหม่"
+            aria-label="เพิ่มโครงงานใหม่"
+            className="w-full h-10 rounded-xl bg-slate-950 text-white hover:bg-slate-900 flex items-center justify-center transition-colors shadow-md group relative"
+          >
+            <Plus className="w-5 h-5 stroke-[2.5] text-amber-400" />
+            <span className="absolute left-full ml-3 px-3 py-1.5 bg-slate-950 text-white text-xs font-medium rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+              เพิ่มโครงงานใหม่
+            </span>
+          </button>
+        </div>
 
       </div>
 
