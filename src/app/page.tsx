@@ -361,10 +361,7 @@ export default function Home() {
                     </button>
                   </div>
 
-                  <p
-                    key={aiCuratedSummary || 'default-summary'}
-                    className="dna-text-reveal text-xs md:text-sm text-slate-200 leading-relaxed font-sans"
-                  >
+                  <p className="text-xs md:text-sm text-slate-200 leading-relaxed font-sans">
                     {aiCuratedSummary || `AI ได้ทำการวิเคราะห์และคัดกรองพิมพ์เขียวโครงงานที่เกี่ยวข้องกับโจทย์ที่คุณต้องการ เรียงลำดับตามความสอดคล้องของเทคโนโลยีและผลลัพธ์:`}
                   </p>
 

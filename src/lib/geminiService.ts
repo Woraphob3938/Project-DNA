@@ -14,25 +14,23 @@ const MODEL_FALLBACKS = ['gemini-3.6-flash', 'gemini-flash-lite-latest', 'gemini
 /**
  * Single entry point for all Gemini text generation.
  * Uses the unified @google/genai SDK (the successor of the deprecated
- * @google/generative-ai package) and falls back through model aliases so
- * the service keeps working if a specific alias is retired.
+ * @google/generative-ai package).
+ *
+ * Speed: every model alias is raced IN PARALLEL via Promise.any — the
+ * fastest successful answer wins, so an invalid/throttled alias no longer
+ * adds its full round-trip latency the way a sequential fallback did.
  */
 async function generateText(prompt: string): Promise<string> {
   const ai = new GoogleGenAI({ apiKey: geminiApiKey });
-  let lastErr: unknown = null;
 
-  for (const model of MODEL_FALLBACKS) {
-    try {
-      const response = await ai.models.generateContent({ model, contents: prompt });
-      const text = response.text;
-      if (text) return text;
-      lastErr = new Error(`Empty response from ${model}`);
-    } catch (e) {
-      lastErr = e;
-    }
-  }
+  const attempts = MODEL_FALLBACKS.map(async (model) => {
+    const response = await ai.models.generateContent({ model, contents: prompt });
+    const text = response.text;
+    if (!text) throw new Error(`Empty response from ${model}`);
+    return text;
+  });
 
-  throw lastErr ?? new Error('All Gemini models failed to respond');
+  return Promise.any(attempts);
 }
 
 export async function extractDnaWithGemini(rawText: string): Promise<{
@@ -311,8 +309,10 @@ export async function rankProjectsWithAi(
 
 หน้าที่ของคุณ:
 1. วิเคราะห์เจตนาและความต้องการของผู้ใช้ (เช่น เครื่องสูบน้ำพลังงานแสงอาทิตย์, ระบบตรวจจับโรคข้าว, ผ้าคราม, โคขุน ฯลฯ)
-2. คัดเลือกและให้คะแนนความตรงจุด (Match Score 0 - 100%) สำหรับทุกโครงงาน เรียงจากมากไปน้อย
+2. คัดเลือกเฉพาะโครงงานที่เกี่ยวข้อง "ไม่เกิน 10 โครงงาน" ที่ตรงกับโจทย์มากที่สุด ให้คะแนน Match Score 0-100% เรียงจากมากไปน้อย — ข้ามโครงงานที่ไม่เกี่ยวข้องทั้งหมด
 3. เขียนบทสรุปสั้นๆ (curated_summary 2-3 ประโยคภาษาไทย) อธิบายว่า AI รวบรวมพิมพ์เขียวโครงงานใดที่เกี่ยวข้องมาให้บ้าง มีโค้ด ชุดข้อมูล หรือฮาร์ดแวร์ใดที่นำไปต่อยอดได้ทันที
+
+ข้อจำกัดเพื่อความรวดเร็ว: match_reason 1 ประโยคสั้นๆ, learning_tips 1 ประโยคสั้นๆ
 
 รายการโครงงาน:
 ${JSON.stringify(projectSummaries, null, 2)}

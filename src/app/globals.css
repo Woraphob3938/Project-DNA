@@ -85,23 +85,3 @@ h1, h2, h3, h4, h5, h6, .font-display {
 .dna-marquee-track > span {
   padding-right: 4rem;
 }
-
-/* ── AI summary reveal · left→right sweep ─────────────────────────────
- * Applied to the curated-summary paragraph right after results arrive:
- * the text is unveiled from the left edge to the right at a readable,
- * near-linear pace so visitors can follow it as it sweeps across
- * (clip-path keeps the layout stable while animating). */
-@keyframes dna-text-reveal-ltr {
-  from {
-    clip-path: inset(0 100% 0 0);
-    opacity: 0.55;
-  }
-  to {
-    clip-path: inset(0 -2% 0 0);
-    opacity: 1;
-  }
-}
-
-.dna-text-reveal {
-  animation: dna-text-reveal-ltr 2s cubic-bezier(0.45, 0.05, 0.55, 0.95) both;
-}
