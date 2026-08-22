@@ -17,6 +17,7 @@ import { Project, Faculty, Department, Challenge, ProjectLineageEdge, ActiveTab,
 import { dnaService } from '@/lib/dnaService';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { useAuthGate } from '@/hooks/useAuthGate';
+import { useFavorites } from '@/hooks/useFavorites';
 import { 
   Sparkles, 
   RefreshCw, 
@@ -50,7 +51,9 @@ export default function Home() {
   const [selectedDept, setSelectedDept] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [resourceFilter, setResourceFilter] = useState<string | null>(null);
-  const [favorites, setFavorites] = useState<string[]>([]);
+
+  // Favorites persisted in localStorage via an external store (SSR-safe)
+  const [favorites, toggleFavorite] = useFavorites();
 
   // AI Search State
   const [aiMatchResults, setAiMatchResults] = useState<AiMatchResult[] | null>(null);
@@ -99,26 +102,7 @@ export default function Home() {
     }
 
     loadInitialData();
-
-    // Load saved favorites from localStorage
-    try {
-      const savedFavs = localStorage.getItem('project_dna_favs');
-      if (savedFavs) {
-        setFavorites(JSON.parse(savedFavs));
-      }
-    } catch {
-      // ignore
-    }
   }, []);
-
-  // Save favorites to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('project_dna_favs', JSON.stringify(favorites));
-    } catch {
-      // ignore
-    }
-  }, [favorites]);
 
   // Direct AI Search Handler
   const handleTriggerAiSearch = async (queryText: string) => {
@@ -223,9 +207,7 @@ export default function Home() {
   const handleToggleFavorite = (projectId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!requireLogin('/')) return;
-    setFavorites(prev =>
-      prev.includes(projectId) ? prev.filter(id => id !== projectId) : [...prev, projectId]
-    );
+    toggleFavorite(projectId);
   };
 
   // Add new project handler

@@ -98,21 +98,33 @@ export default function EditProjectPage() {
       .filter((p): p is Project => Boolean(p));
   }, [myIds, projects]);
 
-  // Auto-select: honour ?id=<projectId>, otherwise the first owned project
-  useEffect(() => {
-    if (myProjects.length === 0) return;
-    if (selectedId && myProjects.some(p => p.id === selectedId)) return;
-    const wanted = new URLSearchParams(window.location.search).get('id');
-    setSelectedId(
-      wanted && myProjects.some(p => p.id === wanted) ? wanted : myProjects[0].id
-    );
-  }, [myProjects, selectedId]);
+  // Auto-select: honor ?id=<projectId>, otherwise the first owned project.
+  // Uses React's documented "adjust state during render" pattern instead of
+  // a syncing effect — the update is applied before commit with no cascade.
+  // Safe on the server too: myProjects is empty until data loads client-side.
+  const [autoSelectedFor, setAutoSelectedFor] = useState<Project[] | null>(null);
+  if (myProjects.length > 0 && autoSelectedFor !== myProjects) {
+    setAutoSelectedFor(myProjects);
+    if (!(selectedId && myProjects.some(p => p.id === selectedId))) {
+      const wanted = typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('id')
+        : null;
+      setSelectedId(
+        wanted && myProjects.some(p => p.id === wanted) ? wanted : myProjects[0].id
+      );
+    }
+  }
 
-  // Populate the form whenever the selection changes
-  useEffect(() => {
-    const current = myProjects.find(p => p.id === selectedId);
-    if (current) loadFormFrom(current);
-  }, [selectedId, myProjects, loadFormFrom]);
+  // Populate the form whenever the selection or project data changes.
+  // Same render-phase adjustment pattern as above.
+  const current = myProjects.find(p => p.id === selectedId);
+  const [formLoadedFrom, setFormLoadedFrom] = useState<{ id: string | null; source: Project[] } | null>(null);
+  if (current && (
+    formLoadedFrom?.id !== selectedId || formLoadedFrom.source !== myProjects
+  )) {
+    setFormLoadedFrom({ id: selectedId, source: myProjects });
+    loadFormFrom(current);
+  }
 
   const handleSave = async () => {
     if (!selectedId) return;

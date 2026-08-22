@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -68,11 +68,11 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
   // Bookmark & downloads require login
   const { requireLogin } = useAuthGate();
 
-  // Show the edit shortcut only for projects this visitor created
-  const [isOwner, setIsOwner] = useState(false);
-  useEffect(() => {
-    setIsOwner(getMyProjectIds().includes(project.id));
-  }, [project.id]);
+  // Show the edit shortcut only for projects this visitor created.
+  // Derived at render time instead of an effect: the drawer mounts only
+  // from user interaction (never server-rendered), so reading localStorage
+  // here is safe and skips a cascading re-render.
+  const isOwner = getMyProjectIds().includes(project.id);
 
   // Close on Escape key
   useEffect(() => {

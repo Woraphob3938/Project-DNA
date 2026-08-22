@@ -1,6 +1,6 @@
 import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
 
-export default [
+const config = [
   {
     ignores: [".next/**", "node_modules/**", "out/**", "public/**", "tools/**"],
   },
@@ -13,3 +13,5 @@ export default [
     },
   },
 ];
+
+export default config;

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { 
   ArrowLeft, 
@@ -45,6 +45,16 @@ function translateAuthError(message: string): string {
 }
 
 export default function LoginPage() {
+  // useSearchParams requires a Suspense boundary to keep /login statically
+  // prerenderable; the form renders once params are available client-side.
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
   const [accountType, setAccountType] = useState<'student' | 'faculty'>('student');
   const [isSignUp, setIsSignUp] = useState(false);
@@ -58,18 +68,18 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
 
-  // Surface errors passed back from the OAuth callback (e.g. non-KU email)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const err = params.get('error');
-    if (err === 'domain') {
-      setStatus('error');
-      setErrorMessage('อีเมลนี้ไม่ใช่อีเมลของมหาวิทยาลัยเกษตรศาสตร์ กรุณาใช้อีเมล @student.ku.ac.th, @ku.ac.th หรือ @ku.th เท่านั้น');
-    } else if (err === 'oauth') {
-      setStatus('error');
-      setErrorMessage('การเข้าสู่ระบบด้วย Google ไม่สำเร็จ กรุณาลองอีกครั้ง');
-    }
-  }, []);
+  // Surface errors passed back from the OAuth callback (e.g. non-KU email).
+  // Derived from the URL on every render instead of an effect: no cascading
+  // re-render, no hydration mismatch, and it disappears as soon as the
+  // visitor submits the form (status moves off 'idle').
+  const searchParams = useSearchParams();
+  const urlError = searchParams.get('error');
+  const urlErrorMessage =
+    urlError === 'domain'
+      ? 'อีเมลนี้ไม่ใช่อีเมลของมหาวิทยาลัยเกษตรศาสตร์ กรุณาใช้อีเมล @student.ku.ac.th, @ku.ac.th หรือ @ku.th เท่านั้น'
+      : urlError === 'oauth'
+        ? 'การเข้าสู่ระบบด้วย Google ไม่สำเร็จ กรุณาลองอีกครั้ง'
+        : '';
 
   const handleSuccess = () => {
     setStatus('success');
@@ -272,10 +282,10 @@ export default function LoginPage() {
           </div>
 
           {/* Feedback Error / Success Alert */}
-          {status === 'error' && (
+          {(status === 'error' || (status === 'idle' && urlErrorMessage)) && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-2 text-xs text-red-700 font-medium">
               <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
-              <span>{errorMessage}</span>
+              <span>{errorMessage || urlErrorMessage}</span>
             </div>
           )}
 
