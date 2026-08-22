@@ -18,6 +18,7 @@ import { dnaService } from '@/lib/dnaService';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { useAuthGate } from '@/hooks/useAuthGate';
 import { useFavorites } from '@/hooks/useFavorites';
+import { removeMyProjectId } from '@/hooks/useMyProjects';
 import { Pagination } from '@/components/projects/Pagination';
 import { HomeSkeleton } from '@/components/projects/HomeSkeleton';
 import { 
@@ -242,6 +243,14 @@ export default function Home() {
     if (e) e.stopPropagation();
     if (!requireLogin('/')) return;
     toggleFavorite(projectId);
+  };
+
+  // Owner-only delete: remove from DB, local ownership registry and UI state
+  const handleDeleteProject = async (project: Project) => {
+    await dnaService.deleteProject(project.id);
+    removeMyProjectId(project.id);
+    setProjects(prev => prev.filter(p => p.id !== project.id));
+    setSelectedProject(null);
   };
 
   // Add new project handler
@@ -517,6 +526,7 @@ export default function Home() {
           onToggleFavorite={(id) => handleToggleFavorite(id)}
           onOpenInceptionStudio={(project) => setInceptionProject(project)}
           onOpenQuickModal={(project) => setQuickModalProject(project)}
+          onDelete={handleDeleteProject}
           onViewLineage={(project) => {
             setSelectedProject(project);
             setActiveTab('lineage');

@@ -29,6 +29,17 @@ export function addMyProjectId(id: string): void {
   }
 }
 
+/** Forget a deleted project in the local ownership registry. */
+export function removeMyProjectId(id: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const ids = getMyProjectIds().filter(existing => existing !== id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+  } catch {
+    // ignore storage failures
+  }
+}
+
 /**
  * Resolve ownership: server (`projects.owner_id`) first, localStorage as a
  * fallback when Supabase is unavailable or nobody is signed in.

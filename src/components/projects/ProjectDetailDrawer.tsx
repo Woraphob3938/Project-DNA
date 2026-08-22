@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -17,7 +17,9 @@ import {
   Award,
   Layers,
   ArrowRight,
-  PencilLine
+  PencilLine,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { Project } from '@/types/dna';
 import { useAuthGate } from '@/hooks/useAuthGate';
@@ -48,6 +50,8 @@ interface ProjectDetailDrawerProps {
   onViewLineage: (project: Project) => void;
   isFavorite: boolean;
   onToggleFavorite: (projectId: string) => void;
+  /** Owner-only: permanently delete this project (called after confirmation). */
+  onDelete?: (project: Project) => Promise<void> | void;
 }
 
 export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
@@ -57,8 +61,12 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
   onOpenInceptionStudio,
   onViewLineage,
   isFavorite,
-  onToggleFavorite
+  onToggleFavorite,
+  onDelete
 }) => {
+  // Two-step delete confirmation so a single stray click can't destroy data
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   // Resource availability flags for the sidebar summary
   const hasCode = project.assets?.some(a => a.asset_type === 'code_repo') || Boolean(project.dna_card?.repository_url);
   const hasDataset = project.assets?.some(a => a.asset_type === 'dataset');
@@ -391,15 +399,56 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
           <ArrowRight className="w-4 h-4 ml-1" />
         </button>
 
-        {/* Owner-only: edit this project */}
+        {/* Owner-only: edit / delete this project */}
         {isOwner && (
-          <Link
-            href={`/edit?id=${project.id}`}
-            className="w-full py-2 px-3 bg-transparent hover:bg-slate-800 text-amber-300 text-xs font-semibold rounded-lg border border-slate-700 flex items-center justify-center space-x-1.5 transition-colors"
-          >
-            <PencilLine className="w-3.5 h-3.5" />
-            <span>แก้ไขโครงงานนี้</span>
-          </Link>
+          <div className="grid grid-cols-2 gap-2">
+            <Link
+              href={`/edit?id=${project.id}`}
+              className="py-2 px-3 bg-transparent hover:bg-slate-800 text-amber-300 text-xs font-semibold rounded-lg border border-slate-700 flex items-center justify-center space-x-1.5 transition-colors"
+            >
+              <PencilLine className="w-3.5 h-3.5" />
+              <span>แก้ไขโครงงาน</span>
+            </Link>
+
+            <button
+              onClick={async () => {
+                if (!onDelete) return;
+                if (!confirmingDelete) {
+                  setConfirmingDelete(true);
+                  return;
+                }
+                setIsDeleting(true);
+                try {
+                  await onDelete(project);
+                } finally {
+                  setIsDeleting(false);
+                  setConfirmingDelete(false);
+                }
+              }}
+              onBlur={() => setConfirmingDelete(false)}
+              disabled={isDeleting}
+              aria-label="ลบโครงงานถาวร"
+              className={`py-2 px-3 text-xs font-semibold rounded-lg border flex items-center justify-center space-x-1.5 transition-colors disabled:opacity-50 ${
+                confirmingDelete
+                  ? 'bg-red-600 hover:bg-red-500 text-white border-red-500'
+                  : 'bg-transparent hover:bg-red-950/40 text-red-400 border-slate-700 hover:border-red-800'
+              }`}
+            >
+              {isDeleting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : confirmingDelete ? (
+                <>
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>แน่ใจนะ — ลบเลย</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>ลบโครงงาน</span>
+                </>
+              )}
+            </button>
+          </div>
         )}
 
         <div className="grid grid-cols-2 gap-2">

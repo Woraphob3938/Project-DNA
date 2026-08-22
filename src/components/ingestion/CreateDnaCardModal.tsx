@@ -7,9 +7,10 @@ import {
   Check, 
   Loader2,
   ImageIcon,
-  AlertCircle
+  AlertCircle,
+  Paperclip
 } from 'lucide-react';
-import { Project, Department, Faculty } from '@/types/dna';
+import { Project, Department, Faculty, ReusableAsset } from '@/types/dna';
 import { extractDnaWithGemini } from '@/lib/geminiService';
 import { Logo } from '@/components/layout/Logo';
 import { supabase } from '@/lib/supabaseClient';
@@ -17,6 +18,7 @@ import { supabase } from '@/lib/supabaseClient';
 const FALLBACK_COVER_URL = 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop&q=60';
 const MAX_COVER_BYTES = 5 * 1024 * 1024; // 5MB — matches the storage bucket limit
 const ALLOWED_COVER_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_FILE_BYTES = 15 * 1024 * 1024; // 15MB — matches the storage bucket limit
 
 interface CreateDnaCardModalProps {
   isOpen: boolean;
@@ -44,6 +46,11 @@ export const CreateDnaCardModal: React.FC<CreateDnaCardModalProps> = ({
   const [coverError, setCoverError] = useState('');
   const [coverNotice, setCoverNotice] = useState('');
 
+  // PDF attachments state
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [filesError, setFilesError] = useState('');
+  const [filesNotice, setFilesNotice] = useState('');
+
   // Save state
   const [isSaving, setIsSaving] = useState(false);
 
@@ -64,6 +71,38 @@ export const CreateDnaCardModal: React.FC<CreateDnaCardModalProps> = ({
     if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
     setCoverFile(null);
     setCoverPreviewUrl('');
+  };
+
+  const handleFilesSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (picked.length === 0) return;
+
+    const accepted: File[] = [];
+    for (const file of picked) {
+      if (file.type !== 'application/pdf') {
+        setFilesError(`"${file.name}" ไม่ใช่ไฟล์ PDF`);
+        continue;
+      }
+      if (file.size > MAX_FILE_BYTES) {
+        setFilesError(`"${file.name}" ใหญ่เกิน 15MB`);
+        continue;
+      }
+      accepted.push(file);
+    }
+
+    if (accepted.length > 0) {
+      setFilesError('');
+      // de-duplicate by name+size in case the same file is picked twice
+      setAttachments(prev => {
+        const known = new Set(prev.map(f => `${f.name}:${f.size}`));
+        return [...prev, ...accepted.filter(f => !known.has(`${f.name}:${f.size}`))];
+      });
+    }
+  };
+
+  const handleRemoveAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleCoverSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,17 +161,74 @@ export const CreateDnaCardModal: React.FC<CreateDnaCardModalProps> = ({
     return data.publicUrl;
   };
 
+  /**
+   * Upload every selected PDF to Storage and build reusable-asset entries
+   * from them. Files that fail are skipped (counted in the returned notice)
+   * so one bad file never blocks publishing.
+   */
+  const uploadAttachmentsIfNeeded = async (): Promise<{ assets: ReusableAsset[]; failed: number }> => {
+    if (attachments.length === 0) return { assets: [], failed: 0 };
+    if (!supabase) throw new Error('ระบบฐานข้อมูลยังไม่พร้อมใช้งาน');
+
+    const { data: { user } } = await supabase.auth.getUser();
+    const folder = user?.id ?? 'guest';
+
+    const assets: ReusableAsset[] = [];
+    let failed = 0;
+
+    for (const file of attachments) {
+      try {
+        const path = `${folder}/${Date.now()}-${file.name.replace(/[^\w.\-\u0E00-\u0E7F]+/g, '_')}`;
+        const { error } = await supabase.storage
+          .from('project-files')
+          .upload(path, file, { cacheControl: '3600', upsert: false });
+        if (error) throw error;
+
+        const { data } = supabase.storage.from('project-files').getPublicUrl(path);
+        assets.push({
+          id: `asset-doc-${Date.now()}-${assets.length}`,
+          project_id: '',
+          asset_type: 'document',
+          title: file.name,
+          description: 'เอกสารแนบโครงงาน (PDF)',
+          resource_url: data.publicUrl,
+          file_size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+          license: 'MIT / Open Academic',
+          download_count: 0
+        });
+      } catch (e) {
+        console.warn(`Attachment upload failed (${file.name}):`, e);
+        failed++;
+      }
+    }
+
+    return { assets, failed };
+  };
+
   const handleSave = async () => {
     if (!extractedData || isSaving) return;
     setIsSaving(true);
     setCoverNotice('');
+    setFilesNotice('');
 
     let coverUrl = '';
+    let uploadedAssets: ReusableAsset[] = [];
     try {
       coverUrl = await uploadCoverIfNeeded();
     } catch (e) {
       console.warn('Cover upload failed, using standard cover instead:', e);
       setCoverNotice('อัปโหลดรูปหน้าปกไม่สำเร็จ — ระบบจะใช้รูปมาตรฐานแทน');
+    }
+
+    try {
+      const result = await uploadAttachmentsIfNeeded();
+      uploadedAssets = result.assets;
+      if (result.failed > 0) {
+        setFilesNotice(`อัปโหลดไฟล์แนบไม่สำเร็จ ${result.failed} ไฟล์ — ส่วนที่เหลือจะถูกบันทึกตามปกติ`);
+      }
+    } catch (e) {
+      console.warn('Attachment upload skipped:', e);
+      setFilesNotice('อัปโหลดไฟล์แนบไม่สำเร็จ (ฐานข้อมูลยังไม่พร้อม)');
     }
 
     try {
@@ -161,6 +257,7 @@ export const CreateDnaCardModal: React.FC<CreateDnaCardModalProps> = ({
             { name: 'นิสิตผู้สร้างโครงงาน', student_id: '6740xxxxxx', role: 'Project Creator' }
           ]
         },
+        assets: uploadedAssets,
         gaps: extractedData.gaps || []
       };
 
@@ -317,13 +414,66 @@ export const CreateDnaCardModal: React.FC<CreateDnaCardModalProps> = ({
             )}
           </div>
 
+          {/* PDF Attachments Upload */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-700 block">
+              3. ไฟล์แนบโครงงาน{' '}
+              <span className="font-normal text-slate-400">(PDF เท่านั้น · ไม่เกิน 15MB ต่อไฟล์ — เลือกได้หลายไฟล์)</span>
+            </label>
+
+            {attachments.length > 0 && (
+              <div className="space-y-1.5">
+                {attachments.map((file, i) => (
+                  <div
+                    key={`${file.name}-${file.size}-${i}`}
+                    className="flex items-center space-x-2.5 p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  >
+                    <span className="px-1.5 py-0.5 bg-red-600 text-white text-[10px] font-black rounded shrink-0">PDF</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-slate-800 truncate">{file.name}</p>
+                      <p className="text-[11px] text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveAttachment(i)}
+                      aria-label={`ลบไฟล์ ${file.name}`}
+                      className="w-6 h-6 rounded-full bg-slate-200 hover:bg-red-100 text-slate-500 hover:text-red-600 flex items-center justify-center transition-colors shrink-0"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <label className="flex items-center justify-center space-x-2 p-3 border-2 border-dashed border-slate-300 hover:border-amber-400 hover:bg-amber-50/50 rounded-2xl cursor-pointer transition-colors">
+              <Paperclip className="w-4 h-4 text-slate-400" />
+              <span className="text-xs font-medium text-slate-500">
+                + เพิ่มไฟล์เอกสาร (รายงาน คู่มือ ฯลฯ) — แนบไปพร้อมโครงงานให้รุ่นน้องดาวน์โหลด
+              </span>
+              <input
+                type="file"
+                accept="application/pdf"
+                multiple
+                className="hidden"
+                onChange={handleFilesSelect}
+              />
+            </label>
+
+            {filesError && (
+              <p className="text-[11px] text-red-600 font-medium flex items-center space-x-1">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{filesError}</span>
+              </p>
+            )}
+          </div>
+
           {/* Extracted Preview Area */}
           {extractedData && (
             <div className="p-5 bg-gradient-to-br from-amber-500/10 via-amber-50 to-white rounded-2xl border border-amber-300 space-y-4 animate-in fade-in">
               <div className="flex items-center justify-between border-b border-amber-200 pb-2">
                 <span className="text-xs font-black text-amber-900 flex items-center space-x-1.5">
                   <Check className="w-4 h-4 text-emerald-600" />
-                  <span>3. ตรวจสอบผลลัพธ์ก่อนบันทึก</span>
+                  <span>4. ตรวจสอบผลลัพธ์ก่อนบันทึก</span>
                 </span>
                 <span className="text-xs font-bold px-2 py-0.5 bg-slate-900 text-amber-400 rounded">
                   สาขา {extractedData.department_code} • ปี {extractedData.academic_year}
@@ -363,10 +513,15 @@ export const CreateDnaCardModal: React.FC<CreateDnaCardModalProps> = ({
 
         {/* Footer */}
         <div className="p-5 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 space-y-1">
             {coverNotice && (
               <p className="text-[11px] text-amber-700 bg-amber-100 border border-amber-300 rounded-lg px-2.5 py-1.5 truncate">
                 ⚠️ {coverNotice}
+              </p>
+            )}
+            {filesNotice && (
+              <p className="text-[11px] text-amber-700 bg-amber-100 border border-amber-300 rounded-lg px-2.5 py-1.5 truncate">
+                ⚠️ {filesNotice}
               </p>
             )}
           </div>

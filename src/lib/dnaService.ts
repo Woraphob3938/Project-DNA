@@ -389,6 +389,55 @@ class DnaService {
     return updated;
   }
 
+  /**
+   * Delete a project and every related row (dna_card, assets, gaps,
+   * lineage edges). RLS delete policies scope each removal to the project
+   * owner, so a non-owner's delete silently affects 0 rows — detected via
+   * the returned row count.
+   */
+  async deleteProject(projectId: string): Promise<{ deleted: boolean; warning: string | null }> {
+    this.lastSyncWarning = null;
+
+    // Remove from the browser-side cache immediately (client-only mutation)
+    if (typeof window !== 'undefined') {
+      this.inMemoryProjects = this.inMemoryProjects.filter(p => p.id !== projectId);
+    }
+
+    if (!isSupabaseConfigured || !supabase) {
+      // Demo mode: in-memory removal is all we can do
+      return { deleted: true, warning: null };
+    }
+
+    try {
+      // Children first so orphan rows never linger if a later step fails
+      await supabase.from('extension_gaps').delete().eq('project_id', projectId);
+      await supabase.from('reusable_assets').delete().eq('project_id', projectId);
+      await supabase.from('dna_cards').delete().eq('project_id', projectId);
+      await supabase
+        .from('project_lineages')
+        .delete()
+        .or(`parent_project_id.eq.${projectId},child_project_id.eq.${projectId}`);
+
+      const { data, error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId)
+        .select();
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        this.lastSyncWarning = 'ไม่มีสิทธิ์ลบโครงงานนี้ในฐานข้อมูล (ไม่ใช่เจ้าของ)';
+        return { deleted: false, warning: this.lastSyncWarning };
+      }
+      return { deleted: true, warning: null };
+    } catch (e) {
+      this.lastSyncWarning = e instanceof Error ? e.message : String(e);
+      console.warn('Supabase delete failed:', e);
+      return { deleted: false, warning: this.lastSyncWarning };
+    }
+  }
+
   // Ids of projects owned by the signed-in user. Returns [] when Supabase is
   // unavailable or nobody is signed in — callers fall back to the local
   // ownership registry in that case.
