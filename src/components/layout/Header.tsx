@@ -129,16 +129,6 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Global Navigation Actions */}
         <div className="flex items-center space-x-2 shrink-0">
           
-          {/* Advisor Dashboard */}
-          <Link
-            href="/advisor"
-            className="flex items-center space-x-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-950 font-bold text-xs rounded-xl border border-amber-300/80 transition-all shrink-0 shadow-2xs"
-            title="เข้าสู่หน้าศูนย์ควบคุมและอนุมัติโครงงานของอาจารย์"
-          >
-            <ShieldCheck className="w-4 h-4 text-amber-700" />
-            <span className="hidden md:inline">แดชบอร์ดอาจารย์</span>
-          </Link>
-
           {/* My Projects — requires login */}
           <Link
             href="/edit"
