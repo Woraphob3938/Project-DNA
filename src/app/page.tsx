@@ -9,11 +9,12 @@ import { LineageVisualizer } from '@/components/lineage/LineageVisualizer';
 import { ProjectAnalytics } from '@/components/analytics/ProjectAnalytics';
 import { InceptionStudioModal } from '@/components/projects/InceptionStudioModal';
 import { QuickResourceModal } from '@/components/projects/QuickResourceModal';
-import { CreateDnaCardModal } from '@/components/ingestion/CreateDnaCardModal';
+
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 
 import { Project, Faculty, Department, Challenge, ProjectLineageEdge, ActiveTab, UserMatchProfile, AiMatchResult } from '@/types/dna';
+import Link from 'next/link';
 import { dnaService } from '@/lib/dnaService';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { useAuthGate } from '@/hooks/useAuthGate';
@@ -76,7 +77,7 @@ export default function Home() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [inceptionProject, setInceptionProject] = useState<Project | null>(null);
   const [quickModalProject, setQuickModalProject] = useState<Project | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  
 
   // Load Initial Data
   useEffect(() => {
@@ -288,7 +289,6 @@ export default function Home() {
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        onOpenCreateModal={() => setIsCreateModalOpen(true)}
         favoriteCount={favorites.length}
         myProjectCount={myIds?.length ?? 0}
       />
@@ -320,7 +320,6 @@ export default function Home() {
             setAiCuratedSummary(null);
             setActiveUserProfile(null);
           }}
-          onOpenCreateModal={() => setIsCreateModalOpen(true)}
           totalProjects={projects.length}
         />
 
@@ -567,12 +566,11 @@ export default function Home() {
                       <p className="text-xs text-slate-500 max-w-sm mx-auto">
                         เริ่มสร้าง DNA Card แรกของคุณ — วางบทคัดย่อแล้วให้ AI จัดการที่เหลือ
                       </p>
-                      <button
-                        onClick={() => setIsCreateModalOpen(true)}
+                      <Link href="/submit"
                         className="px-4 py-2 bg-slate-900 text-amber-400 text-xs font-bold rounded-lg transition-colors hover:bg-slate-800"
                       >
-                        + เพิ่มโครงงานใหม่
-                      </button>
+                        + เพิ่มโปรเจกต์ใหม่
+                      </Link>
                     </div>
                   )}
                 </>
@@ -657,17 +655,6 @@ export default function Home() {
         onClose={() => setQuickModalProject(null)}
       />
 
-      {/* 6. Create Project Modal — mounted only while open so each session starts with a fresh form */}
-      {isCreateModalOpen && (
-        <CreateDnaCardModal
-          isOpen
-          onClose={() => setIsCreateModalOpen(false)}
-          departments={departments}
-          faculties={faculties}
-          onSuccessCreate={handleSuccessCreate}
-        />
-      )}
-
-    </div>
+      </div>
   );
 }

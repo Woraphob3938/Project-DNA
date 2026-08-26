@@ -559,5 +559,140 @@ export const SEED_PROJECTS: Project[] = [
     view_count: 1040,
     fork_count: 11,
     matched_challenge_ids: ['chal-1']
+  },
+  {
+    id: 'proj-pending-1',
+    title_th: 'ระบบทำนายปริมาณความชื้นในดินและควบคุมวาล์วน้ำพลังงานแสงอาทิตย์แปลงเกษตรอินทรีย์',
+    title_en: 'IoT-based Soil Moisture Prediction and Solar Valve Controller for Organic Farming',
+    abstract_th: 'พัฒนาระบบเซ็นเซอร์วัดความชื้นในดินหลายระดับความลึก ส่งข้อมูลผ่าน LoRa ไปยังสถานีควบคุมกลางที่ประมวลผลด้วย Edge AI เพื่อสั่งเปิด-ปิดวาล์วน้ำพลังงานแสงอาทิตย์แบบอัตโนมัติตามความต้องการของพืช',
+    abstract_en: 'Multi-depth soil moisture sensing with LoRa telemetry and Edge-AI automatic solar-powered valve regulation.',
+    academic_year: 2568,
+    status: 'pending_approval',
+    approval_status: 'pending',
+    submitted_at: '2026-08-25T10:30:00Z',
+    department_id: 'dept-cpe',
+    cover_image_url: 'https://images.unsplash.com/photo-1586771107445-d3ca888129ff?w=800&auto=format&fit=crop&q=60',
+    rating_score: 4.9,
+    view_count: 45,
+    fork_count: 0,
+    dna_card: {
+      id: 'dna-pending-1',
+      project_id: 'proj-pending-1',
+      problem_statement: 'เกษตรกรในแปลงเกษตรอินทรีย์สกลนครสูญเสียผลผลิตจากภาวะแล้งและรดน้ำเกินความจำเป็นเนื่องจากขาดระบบวัดความชื้นใต้ดินแบบเรียลไทม์',
+      target_users: ['วิสาหกิจชุมชนเกษตรอินทรีย์หนองสนม', 'เกษตรกรผู้ปลูกผักปลอดภัย', 'ศูนย์เรียนรู้เกษตรแม่นยำ มก.ฉกส.'],
+      tech_stack: ['ESP32', 'LoRaWAN SX1276', 'Random Forest Regressor', 'FastAPI', 'Next.js', 'PostgreSQL'],
+      key_outcomes: [
+        'ประหยัดน้ำชลประทานในแปลงทดสอบได้ 38.5%',
+        'ความแม่นยำในการทำนายรอบการรดน้ำ 92.4%',
+        'ควบคุมวาล์วน้ำระยะไกลผ่านคลื่นวิทยุได้ไกล 4.2 กิโลเมตร'
+      ],
+      limitations: [
+        'เซ็นเซอร์ความชื้น Capacitive ต้องคาลิเบรตตามชนิดดินแต่ละแปลง',
+        'แผงโซลาร์เซลล์ขนาด 20W ต้องได้รับแสงแดดอย่างน้อย 4 ชม./วัน'
+      ],
+      hardware_specs: 'บอร์ดประมวลผล ESP32-WROOM, โมดูล LoRa Ra-02, โซลินอยด์วาล์ว 12VDC แบบ Latching, แบตเตอรี่ LiFePO4 12V 6Ah',
+      dataset_description: 'ชุดข้อมูลความชื้นในดิน อุณหภูมิ และปริมาณน้ำฝน 90 วัน รวม 43,200 เรคคอร์ด',
+      repository_url: 'https://github.com/kuse-cpe/smart-soil-lora-controller',
+      advisor_name: 'ผศ.ดร. นคร พัฒนา',
+      student_authors: [
+        { name: 'นายธีรภัทร ยอดมณี', student_id: '653020112-4', role: 'Embedded IoT & Hardware Lead' },
+        { name: 'นางสาวกัญญาณัฐ วรรณโชติ', student_id: '653020145-1', role: 'Cloud Dashboard & AI Model' }
+      ]
+    },
+    assets: [
+      {
+        id: 'asset-p1-1',
+        project_id: 'proj-pending-1',
+        asset_type: 'code_repo',
+        title: 'Firmware C++ สำหรับ ESP32 & Backend FastAPI',
+        description: 'ซอร์สโค้ดควบคุมโมดูล LoRa และเซิร์ฟเวอร์วิเคราะห์ความชื้น',
+        resource_url: 'https://github.com/kuse-cpe/smart-soil-lora-controller',
+        license: 'MIT',
+        download_count: 8
+      },
+      {
+        id: 'asset-p1-2',
+        project_id: 'proj-pending-1',
+        asset_type: 'circuit_schematic',
+        title: 'พิมพ์เขียววงจร PCB KiCad & Schematics',
+        description: 'ไฟล์ Schematic และ Gerber สำหรับสั่งผลิตแผ่นวงจรควบคุมวาล์วพลังงานแสงอาทิตย์',
+        resource_url: 'https://github.com/kuse-cpe/smart-soil-lora-controller/tree/main/hardware',
+        license: 'CERN-OHL-P',
+        download_count: 5
+      }
+    ],
+    gaps: [
+      {
+        id: 'gap-p1-1',
+        project_id: 'proj-pending-1',
+        gap_title: 'พัฒนาโมเดล AI พยากรณ์ความชื้นล่วงหน้าโดยดึงข้อมูลภาพถ่ายดาวเทียม Sentinel-2',
+        gap_description: 'ผสานข้อมูลภาพถ่ายดาวเทียมดัชนี NDWI เพื่อประเมินความชื้นแปลงใหญ่ระดับตำบล',
+        difficulty_level: 'Medium',
+        recommended_tech: ['Google Earth Engine', 'Python GEE', 'ResNet'],
+        potential_impact: 'ขยายผลการพยากรณ์น้ำครอบคลุมพื้นที่การเกษตรทั้งอำเภอเมืองสกลนคร'
+      }
+    ]
+  },
+  {
+    id: 'proj-pending-2',
+    title_th: 'แอปพลิเคชันคัดแยกเกรดเมล็ดข้าวสารพันธุ์ กข6 ด้วย Deep Learning บนสมาร์ตโฟนแบบออฟไลน์',
+    title_en: 'Offline Mobile Deep Learning for RD6 Milled Rice Grain Grading Classification',
+    abstract_th: 'พัฒนาโมเดล MobileNetV3 แบบ On-Device คัดแยกเมล็ดข้าวเต็มเมล็ด ข้าวหัก ข้าวเมล็ดแดง และสิ่งเจือปน ผ่านกล้องมือถือทั่วไปโดยไม่ต้องต่ออินเทอร์เน็ต',
+    abstract_en: 'Edge MobileNetV3 on-device classifier distinguishing full grains, broken grains, and impurities without internet.',
+    academic_year: 2568,
+    status: 'pending_approval',
+    approval_status: 'pending',
+    submitted_at: '2026-08-26T08:15:00Z',
+    department_id: 'dept-cs',
+    cover_image_url: 'https://images.unsplash.com/photo-1536304929831-ee1ca9d44906?w=800&auto=format&fit=crop&q=60',
+    rating_score: 4.85,
+    view_count: 32,
+    fork_count: 0,
+    dna_card: {
+      id: 'dna-pending-2',
+      project_id: 'proj-pending-2',
+      problem_statement: 'โรงสีชุมชนและเกษตรกรรายย่อยถูกกดราคาข้าวสารเนื่องจากขาดเครื่องมือวัดเกรดและสิ่งเจือปนที่ได้มาตรฐานและพกพาได้',
+      target_users: ['วิสาหกิจชุมชนข้าวฮางทองสกลทวาปี', 'สหกรณ์การเกษตรสกลนคร', 'พ่อค้าคนกลางรับซื้อข้าว'],
+      tech_stack: ['Flutter', 'TensorFlow Lite', 'MobileNetV3', 'OpenCV Python', 'SQLite'],
+      key_outcomes: [
+        'จำแนกเกรดเมล็ดข้าว 5 ชนิดได้แม่นยำ 96.1%',
+        'ความเร็วในการประมวลผล 120ms ต่อภาพ บนชิป Snapdragon ระดับกลาง',
+        'ทำงานแบบ Offline 100% ไม่ต้องใช้อินเทอร์เน็ต'
+      ],
+      limitations: [
+        'ต้องถ่ายภาพบนแผ่นรองสีดำ (Black Background Pad) เพื่อตัดแสงสะท้อน',
+        'การกระจายตัวของเมล็ดข้าวต้องไม่ซ้อนทับกันเกิน 2 ชั้น'
+      ],
+      dataset_description: 'ชุดภาพถ่ายเมล็ดข้าวสาร กข6 รายเมล็ด 12,000 ภาพ พร้อม Label พิกัด Bounding Box',
+      repository_url: 'https://github.com/kuse-cs/rd6-rice-grain-grader',
+      advisor_name: 'ผศ.ดร. นคร พัฒนา',
+      student_authors: [
+        { name: 'นายธนากร สุขเกษม', student_id: '653020201-9', role: 'Deep Learning & Flutter Developer' }
+      ]
+    },
+    assets: [
+      {
+        id: 'asset-p2-1',
+        project_id: 'proj-pending-2',
+        asset_type: 'trained_model',
+        title: 'โมเดล TFLite Quantized INT8 สำหรับ Android & iOS',
+        description: 'โมเดลประมวลผลขนาด 4.2MB ปรับปรุงเพื่อความเร็วสูงบนชิปสมาร์ตโฟน',
+        resource_url: 'https://github.com/kuse-cs/rd6-rice-grain-grader/releases/tag/v1.0-model',
+        file_size: '4.2 MB',
+        license: 'Apache 2.0',
+        download_count: 14
+      }
+    ],
+    gaps: [
+      {
+        id: 'gap-p2-1',
+        project_id: 'proj-pending-2',
+        gap_title: 'ขยายการรองรับข้าวหอมมะลิ 105 และข้าวเหนียว กข15',
+        gap_description: 'เพิ่มฐานข้อมูลเมล็ดข้าวพันธุ์อื่นเพื่อสร้างเป็น Universal Rice Quality Inspector',
+        difficulty_level: 'Easy',
+        recommended_tech: ['Transfer Learning', 'Data Augmentation'],
+        potential_impact: 'ครอบคลุมผลผลิตข้าวร้อยละ 85 ของภาคตะวันออกเฉียงเหนือ'
+      }
+    ]
   }
 ];

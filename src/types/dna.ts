@@ -91,7 +91,11 @@ export interface Project {
   abstract_th: string;
   abstract_en?: string;
   academic_year: number;
-  status: 'completed' | 'in_progress' | 'incubating';
+  status: 'completed' | 'in_progress' | 'incubating' | 'pending_approval' | 'needs_revision';
+  approval_status?: 'pending' | 'approved' | 'needs_revision';
+  advisor_feedback?: string;
+  submitted_at?: string;
+  reviewed_at?: string;
   department_id: string;
   department?: Department;
   cover_image_url?: string;

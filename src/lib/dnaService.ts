@@ -389,6 +389,49 @@ class DnaService {
     return updated;
   }
 
+  // Teacher / Advisor approval action — approve or request revision
+  async updateProjectApprovalStatus(
+    projectId: string,
+    approvalStatus: 'approved' | 'needs_revision',
+    advisorFeedback?: string
+  ): Promise<Project | null> {
+    const all = await this.getProjects();
+    const existing = all.find(p => p.id === projectId);
+    if (!existing) return null;
+
+    const newProjectStatus: Project['status'] = approvalStatus === 'approved' ? 'completed' : 'needs_revision';
+
+    const updated: Project = {
+      ...existing,
+      status: newProjectStatus,
+      approval_status: approvalStatus,
+      advisor_feedback: advisorFeedback,
+      reviewed_at: new Date().toISOString()
+    };
+
+    if (typeof window !== 'undefined') {
+      const i = this.inMemoryProjects.findIndex(p => p.id === projectId);
+      if (i >= 0) {
+        this.inMemoryProjects[i] = updated;
+      }
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase
+          .from('projects')
+          .update({
+            status: newProjectStatus
+          })
+          .eq('id', projectId);
+      } catch (e) {
+        console.warn('Supabase approval status update error:', e);
+      }
+    }
+
+    return updated;
+  }
+
   /**
    * Delete a project and every related row (dna_card, assets, gaps,
    * lineage edges). RLS delete policies scope each removal to the project
