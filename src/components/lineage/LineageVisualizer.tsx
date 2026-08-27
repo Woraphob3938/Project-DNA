@@ -1,24 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
-import { 
-  GitFork, 
-  ArrowRight, 
-  Layers, 
-  CheckCircle2, 
-  FileCode, 
-  Database, 
-  Cpu, 
+import React, { useMemo, useState } from 'react';
+import {
+  GitFork,
   ArrowUpRight,
   Plus,
   GitBranch,
   Split,
   Table,
   Eye,
-  Award,
   Sparkles,
-  SlidersHorizontal,
-  ChevronRight
+  Dna,
+  Link2Off
 } from 'lucide-react';
 import { Project, ProjectLineageEdge } from '@/types/dna';
 
@@ -30,7 +23,355 @@ interface LineageVisualizerProps {
 }
 
 type ViewMode = 'pipeline' | 'tree' | 'diff';
-type LineageCategory = 'all' | 'indigo' | 'water' | 'agri';
+
+const EXTENSION_TYPE_LABEL: Record<ProjectLineageEdge['extension_type'], string> = {
+  feature_enhancement: 'เสริมความสามารถ',
+  hardware_upgrade: 'อัปเกรดฮาร์ดแวร์',
+  algorithm_optimization: 'ปรับปรุงอัลกอริทึม',
+  domain_adaptation: 'ประยุกต์ข้ามโดเมน'
+};
+
+/** Chip accent per extension type */
+const EXTENSION_TYPE_STYLE: Record<ProjectLineageEdge['extension_type'], string> = {
+  feature_enhancement: 'bg-amber-50 text-amber-900 border-amber-300',
+  hardware_upgrade: 'bg-slate-100 text-slate-800 border-slate-300',
+  algorithm_optimization: 'bg-sky-50 text-sky-900 border-sky-300',
+  domain_adaptation: 'bg-emerald-50 text-emerald-900 border-emerald-300'
+};
+
+const STATUS_LABEL: Record<Project['status'], string> = {
+  completed: 'สำเร็จ · เผยแพร่แล้ว',
+  in_progress: 'กำลังพัฒนา',
+  incubating: 'บ่มเพาะต่อยอด',
+  pending_approval: 'รอการอนุมัติ',
+  needs_revision: 'ต้องปรับปรุง'
+};
+
+/* Alternate accent per family index */
+const FAMILY_ACCENTS = [
+  { chip: 'bg-amber-100 text-amber-900', a: '#d97706', b: '#0284c7' },
+  { chip: 'bg-sky-100 text-sky-900', a: '#0369a1', b: '#d97706' },
+  { chip: 'bg-emerald-100 text-emerald-900', a: '#059669', b: '#6366f1' },
+  { chip: 'bg-purple-100 text-purple-900', a: '#7c3aed', b: '#f59e0b' }
+];
+
+/**
+ * One lineage family = one connected component of the project_lineages DAG.
+ * levels[i] = projects exactly i extension-steps from a root (longest-path
+ * depth so fan-in diamonds keep their true generation).
+ */
+interface FamilyGraph {
+  index: number;
+  roots: Project[];
+  levels: Project[][];
+  edges: ProjectLineageEdge[];
+  members: Set<string>;
+  /** deterministic spine for Diff columns & impact summary */
+  mainChain: Project[];
+}
+const byYearThenTitle = (a: Project, b: Project) =>
+  a.academic_year - b.academic_year || a.title_th.localeCompare(b.title_th, 'th');
+
+function deriveFamilies(projects: Project[], lineages: ProjectLineageEdge[]): FamilyGraph[] {
+  const projMap = new Map(projects.map(p => [p.id, p]));
+
+  // Keep only edges whose both ends resolve to known projects.
+  const edges = lineages.filter(
+    e => projMap.has(e.parent_project_id) && projMap.has(e.child_project_id)
+  );
+
+  const childrenOf = new Map<string, string[]>();
+  const parentsOf = new Map<string, string[]>();
+  const push = (m: Map<string, string[]>, k: string, v: string) =>
+    void m.set(k, [...(m.get(k) ?? []), v]);
+
+  for (const e of edges) {
+    push(childrenOf, e.parent_project_id, e.child_project_id);
+    push(parentsOf, e.child_project_id, e.parent_project_id);
+  }
+  const nodeIds = new Set(edges.flatMap(e => [e.parent_project_id, e.child_project_id]));
+  if (nodeIds.size === 0) return [];
+
+  // ── Connected components (undirected walk) ─────────────────────────
+  const undirected = new Map<string, string[]>();
+  for (const e of edges) {
+    push(undirected, e.parent_project_id, e.child_project_id);
+    push(undirected, e.child_project_id, e.parent_project_id);
+  }
+
+  const seen = new Set<string>();
+  const components: string[][] = [];
+  for (const startId of nodeIds) {
+    if (seen.has(startId)) continue;
+    const comp: string[] = [];
+    const queue = [startId];
+    seen.add(startId);
+    while (queue.length) {
+      const cur = queue.shift()!;
+      comp.push(cur);
+      for (const nb of undirected.get(cur) ?? []) {
+        if (!seen.has(nb)) { seen.add(nb); queue.push(nb); }
+      }
+    }
+    components.push(comp);
+  }
+
+  return components.map((compIds, index) => {
+    const memberSet = new Set(compIds);
+
+    // Root = component node without an in-component parent.
+    const rootIds = compIds.filter(
+      id => !(parentsOf.get(id) ?? []).some(p => memberSet.has(p))
+    );
+    const roots = (rootIds.length ? rootIds : [compIds[0]])
+      .map(id => projMap.get(id)!)
+      .sort(byYearThenTitle);
+
+    // Longest-path depth inside the component.
+    const depth = new Map<string, number>();
+    const depthOf = (id: string): number => {
+      const cached = depth.get(id);
+      if (cached !== undefined) return cached;
+      depth.set(id, 0); // cycle guard for dirty data
+      const ps = (parentsOf.get(id) ?? []).filter(p => memberSet.has(p));
+      const d = ps.length === 0 ? 0 : Math.max(...ps.map(depthOf)) + 1;
+      depth.set(id, d);
+      return d;
+    };
+    compIds.forEach(depthOf);
+
+    const levelMap = new Map<number, Project[]>();
+    for (const id of compIds) {
+      const p = projMap.get(id)!;
+      const d = depth.get(id) ?? 0;
+      levelMap.set(d, [...(levelMap.get(d) ?? []), p]);
+    }
+    const levels = [...levelMap.entries()]
+      .sort((x, y) => x[0] - y[0])
+      .map(([, arr]) => arr.sort(byYearThenTitle));
+
+    // Main chain: from the earliest root, always step to the first
+    // connected child on each following level.
+    const chainFrom = (root: Project): Project[] => {
+      const chain = [root];
+      let cur = root;
+      for (let lvl = depth.get(root.id)! + 1; lvl < levels.length; lvl++) {
+        const childIds = childrenOf.get(cur.id) ?? [];
+        const next = levels[lvl].find(p => childIds.includes(p.id));
+        if (!next) break;
+        cur = next;
+        chain.push(cur);
+      }
+      return chain;
+    };
+
+    return {
+      index,
+      roots,
+      levels,
+      edges: edges.filter(e => memberSet.has(e.parent_project_id)),
+      members: memberSet,
+      mainChain: chainFrom(roots[0])
+    };
+  });
+}
+/* ════════════════════════════════════════════════════════════════════
+ * DNA double-helix connector.
+ *
+ * Geometry (viewBox 0 0 72 132, centre x = 36):
+ *   strand A : M 36,0  C 84,33   -12,99   36,132
+ *   strand B : M 36,0  C -12,33   84,99   36,132      (exact x-mirror)
+ * For this mirror pairing xA(u) + xB(u) ≡ 72, so base-pair rungs drawn
+ * between A(u)→B(u) are always centred and breathe in/out along the twist,
+ * narrowing to a point where the strands cross at u = .5. The running dash
+ * animates opposite directions on each strand (see globals.css).
+ * ════════════════════════════════════════════════════════════════════ */
+
+const HELIX_RUNG_US = [0.12, 0.26, 0.4, 0.6, 0.74, 0.88];
+
+const helixPoint = (u: number, mirror: boolean) => {
+  const v = 1 - u;
+  // Cubic-bézier blends over control points [36, ±48 relative, 36].
+  const w = 48;
+  const x = 36 * v * v * v + (mirror ? -w : w) * 3 * v * v * u + (mirror ? w : -w) * 3 * v * u * u + 36 * u * u * u;
+  const y = 0 * v * v * v + 33 * 3 * v * v * u + 99 * 3 * v * u * u + 132 * u * u * u;
+  return { x, y };
+};
+
+const DnaHelixSegment: React.FC<{ uid: string; colorA: string; colorB: string }> = ({
+  uid,
+  colorA,
+  colorB
+}) => (
+  <div aria-hidden="true" className="relative z-[1] flex justify-center">
+    <svg
+      width="72"
+      height="132"
+      viewBox="0 0 72 132"
+      fill="none"
+      className="drop-shadow-[0_2px_8px_rgba(15,23,42,0.12)]"
+    >
+      <defs>
+        <linearGradient id={`dna-ga-${uid}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={colorA} stopOpacity="0.35" />
+          <stop offset="50%" stopColor={colorA} />
+          <stop offset="100%" stopColor={colorA} stopOpacity="0.35" />
+        </linearGradient>
+        <linearGradient id={`dna-gb-${uid}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={colorB} stopOpacity="0.35" />
+          <stop offset="50%" stopColor={colorB} />
+          <stop offset="100%" stopColor={colorB} stopOpacity="0.35" />
+        </linearGradient>
+      </defs>
+
+      {/* base pairs */}
+      {HELIX_RUNG_US.map((u, i) => {
+        const l = helixPoint(u, false);
+        const r = helixPoint(u, true);
+        return (
+          <line
+            key={i}
+            x1={l.x} y1={l.y} x2={r.x} y2={r.y}
+            stroke={i % 2 === 0 ? colorA : colorB}
+            strokeWidth="1.75"
+            strokeLinecap="round"
+            opacity="0.55"
+            className="dna-rung"
+            style={{ animationDelay: `${i * 0.22}s` }}
+          />
+        );
+      })}
+
+      {/* backbone strands — flowing dashes, mirrored directions */}
+      <path
+        d="M 36 0 C 84 33, -12 99, 36 132"
+        stroke={`url(#dna-ga-${uid})`}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        className="dna-strand"
+      />
+      <path
+        d="M 36 0 C -12 33, 84 99, 36 132"
+        stroke={`url(#dna-gb-${uid})`}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        className="dna-strand dna-strand--rev"
+      />
+
+      {/* crossover highlights */}
+      {[0, 66, 132].map((cy, i) => (
+        <circle key={i} cx="36" cy={cy} r="2.5" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="1" />
+      ))}
+    </svg>
+  </div>
+);
+/* ── Shared atoms ──────────────────────────────────────────────────── */
+
+const GenBadge: React.FC<{ level: number; year: number }> = ({ level, year }) => (
+  <span className="px-2.5 py-0.5 bg-slate-900 text-amber-300 font-mono text-xs font-bold rounded-md shadow-xs">
+    GEN {level + 1} · {year}
+  </span>
+);
+
+/** Evolution note rendered from the incoming edge — real data, never literals. */
+const HeritageChip: React.FC<{ edge?: ProjectLineageEdge; isRoot: boolean; assetCount: number }> = ({
+  edge,
+  isRoot,
+  assetCount
+}) => {
+  if (!edge) {
+    return (
+      <div className="p-2 bg-white rounded-lg border border-slate-200 text-[11px] text-slate-700 font-medium flex items-center space-x-1.5">
+        <Dna className="w-3.5 h-3.5 shrink-0 text-slate-500" />
+        <span className="truncate">
+          จุดเริ่มต้นสาย · เปิดคลัง <strong>{assetCount}</strong> ทรัพยากร
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className={`p-2 rounded-lg border text-[11px] font-medium flex items-start space-x-1.5 ${EXTENSION_TYPE_STYLE[edge.extension_type]}`}>
+      <Sparkles className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+      <span className="min-w-0">
+        <span className="block font-bold mb-0.5">{EXTENSION_TYPE_LABEL[edge.extension_type]}</span>
+        <span className="line-clamp-2 leading-snug opacity-90">{edge.evolution_summary}</span>
+      </span>
+    </div>
+  );
+};
+
+interface GenCardProps {
+  project: Project;
+  level: number;
+  edgeFromParent?: ProjectLineageEdge;
+  onOpen: () => void;
+  onExtend: () => void;
+}
+
+const GenCard: React.FC<GenCardProps> = ({ project, level, edgeFromParent, onOpen, onExtend }) => (
+  <div className="bg-white p-5 rounded-xl border border-slate-200 card-elevation flex flex-col justify-between space-y-4 h-full">
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
+        <GenBadge level={level} year={project.academic_year} />
+        <span className="text-[11px] font-semibold text-slate-600 truncate">
+          {project.department?.name_th ?? project.department?.code ?? 'ไม่ระบุภาควิชา'}
+        </span>
+      </div>
+
+      <button
+        onClick={onOpen}
+        className="block text-left font-display font-bold text-slate-900 text-sm leading-snug hover:text-amber-800 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500 rounded-sm"
+      >
+        {project.title_th}
+      </button>
+
+      {(project.dna_card?.problem_statement || project.abstract_th) && (
+        <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed border-l-2 border-slate-300 pl-2.5">
+          {project.dna_card?.problem_statement ?? project.abstract_th}
+        </p>
+      )}
+    </div>
+
+    <div className="space-y-3">
+      <HeritageChip
+        edge={edgeFromParent}
+        isRoot={!edgeFromParent}
+        assetCount={project.assets?.length ?? 0}
+      />
+
+      <div className="pt-2 border-t border-slate-200 flex items-center justify-between gap-2 text-xs flex-wrap">
+        <span className="inline-flex items-center space-x-1 font-semibold text-slate-500">
+          <Eye className="w-3.5 h-3.5" />
+          <span>{STATUS_LABEL[project.status]}</span>
+        </span>
+        <span className="flex items-center gap-3">
+          <button
+            onClick={onExtend}
+            className="font-bold text-emerald-700 hover:text-emerald-900 inline-flex items-center space-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-500 rounded-sm"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+            <span>ต่อยอด</span>
+          </button>
+          <button
+            onClick={onOpen}
+            className="font-bold text-slate-900 hover:text-amber-700 inline-flex items-center space-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500 rounded-sm"
+          >
+            <span>ดู DNA</span>
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </button>
+        </span>
+      </div>
+    </div>
+  </div>
+);
+/* ════════════════════════════════════════════════════════════════════
+ * LineageVisualizer — fully data-driven.
+ * Families are derived from `lineages` at runtime; no project id is ever
+ * hardcoded. Renders three views over the same derived graph:
+ *   pipeline · DNA-helix spine timeline
+ *   tree     · SVG genealogy with bézier connectors
+ *   diff     · generation matrix from real fields
+ * ════════════════════════════════════════════════════════════════════ */
 
 export const LineageVisualizer: React.FC<LineageVisualizerProps> = ({
   projects,
@@ -39,624 +380,441 @@ export const LineageVisualizer: React.FC<LineageVisualizerProps> = ({
   onOpenInceptionStudio
 }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('pipeline');
-  const [selectedCategory, setSelectedCategory] = useState<LineageCategory>('all');
-  const [diffFamily, setDiffFamily] = useState<'indigo' | 'water' | null>(null);
+  const [diffFamilyIdx, setDiffFamilyIdx] = useState(0);
 
-  const projMap = new Map<string, Project>();
-  projects.forEach(p => projMap.set(p.id, p));
+  const families = useMemo(() => deriveFamilies(projects, lineages), [projects, lineages]);
 
-  // Family 1 projects
-  const indigoProjects = [
-    projMap.get('proj-1'),
-    projMap.get('proj-2'),
-    projMap.get('proj-6')
-  ].filter(Boolean) as Project[];
+  /** Incoming edge per child id (first wins) for heritage chips. */
+  const parentEdgeOf = useMemo(() => {
+    const m = new Map<string, ProjectLineageEdge>();
+    for (const f of families) {
+      for (const e of f.edges) {
+        if (!m.has(e.child_project_id)) m.set(e.child_project_id, e);
+      }
+    }
+    return m;
+  }, [families]);
 
-  // Family 2 projects
-  const waterProjects = [
-    projMap.get('proj-3'),
-    projMap.get('proj-4')
-  ].filter(Boolean) as Project[];
+  /** Projects not attached to any lineage — surfaced so nothing silently disappears. */
+  const unlinked = useMemo(() => {
+    const linkedIds = new Set(families.flatMap(f => [...f.members]));
+    return projects.filter(p => !linkedIds.has(p.id));
+  }, [projects, families]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
-      
-      {/* Header Banner */}
-      <div className="bg-slate-900 text-white p-6 md:p-8 rounded-2xl border border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+
+      {/* ── Header Banner ─────────────────────────────────────────── */}
+      <div className="bg-slate-900 text-white p-6 md:p-8 rounded-2xl border border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
         <div className="max-w-3xl space-y-2">
           <div className="flex items-center space-x-2 text-amber-400 font-mono text-xs font-bold uppercase tracking-wider">
-            <GitFork className="w-4 h-4" />
-            <span>PROJECT DNA LINEAGE & EVOLUTION ENGINE</span>
+            <Dna className="w-4 h-4" />
+            <span>PROJECT DNA LINEAGE &amp; EVOLUTION ENGINE</span>
           </div>
           <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-white">
             สายวิวัฒนาการและการต่อยอดโครงงานนิสิต
           </h2>
           <p className="text-xs md:text-sm text-slate-300 leading-relaxed font-sans">
-            แผนภูมิแสดงการส่งต่อพิมพ์เขียว DNA โค้ด โมเดล AI และฮาร์ดแวร์ข้ามรุ่น ป้องกันการวิจัยซ้ำซ้อน และประเมินความแปลกใหม่ (Novelty) ได้อย่างโปร่งใส
+            เส้นดีเอ็นเอแห่งนวัตกรรม — การส่งต่อพิมพ์เขียว โค้ด โมเดล AI และฮาร์ดแวร์ข้ามรุ่น
+            ป้องกันวิจัยซ้ำซ้อน พร้อมประเมินความแปลกใหม่ได้อย่างโปร่งใส
           </p>
         </div>
 
-        {/* View Mode Switcher Pills */}
-        <div className="flex p-1 bg-slate-800/90 rounded-xl border border-slate-700/80 text-xs font-semibold shrink-0">
-          <button
-            onClick={() => setViewMode('pipeline')}
-            className={`px-3 py-2 rounded-lg flex items-center space-x-1.5 transition-colors ${
-              viewMode === 'pipeline'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
-                : 'text-slate-300 hover:text-white'
-            }`}
-          >
-            <GitFork className="w-3.5 h-3.5" />
-            <span>ลำดับขั้น (Pipeline)</span>
-          </button>
-
-          <button
-            onClick={() => setViewMode('tree')}
-            className={`px-3 py-2 rounded-lg flex items-center space-x-1.5 transition-colors ${
-              viewMode === 'tree'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
-                : 'text-slate-300 hover:text-white'
-            }`}
-          >
-            <Split className="w-3.5 h-3.5" />
-            <span>ผังโครงข่าย (Tree Map)</span>
-          </button>
-
-          <button
-            onClick={() => setViewMode('diff')}
-            className={`px-3 py-2 rounded-lg flex items-center space-x-1.5 transition-colors ${
-              viewMode === 'diff'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
-                : 'text-slate-300 hover:text-white'
-            }`}
-          >
-            <Table className="w-3.5 h-3.5" />
-            <span>เปรียบเทียบ (Diff Matrix)</span>
-          </button>
+        {/* View Mode Switcher */}
+        <div className="flex p-1 bg-slate-800/90 rounded-xl border border-slate-700/80 text-xs font-semibold shrink-0 self-start md:self-auto" role="tablist" aria-label="โหมดการแสดงผล">
+          {([
+            ['pipeline', GitFork, 'ลำดับขั้น (Pipeline)'],
+            ['tree', Split, 'ผังโครงข่าย (Tree)'],
+            ['diff', Table, 'เปรียบเทียบ (Diff)']
+          ] as const).map(([mode, Icon, label]) => (
+            <button
+              key={mode}
+              role="tab"
+              aria-selected={viewMode === mode}
+              onClick={() => setViewMode(mode)}
+              className={`px-3 py-2 rounded-lg flex items-center space-x-1.5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400 ${
+                viewMode === mode
+                  ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{label}</span>
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Category Filter Tabs */}
-      <div className="flex items-center space-x-2 overflow-x-auto pb-1 text-xs">
-        <button
-          onClick={() => setSelectedCategory('all')}
-          className={`px-3.5 py-1.5 rounded-lg font-bold transition-colors ${
-            selectedCategory === 'all'
-              ? 'bg-slate-900 text-white'
-              : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
-          }`}
-        >
-          สายวิวัฒนาการทั้งหมด
-        </button>
-        <button
-          onClick={() => setSelectedCategory('indigo')}
-          className={`px-3.5 py-1.5 rounded-lg font-medium transition-colors flex items-center space-x-1.5 ${
-            selectedCategory === 'indigo'
-              ? 'bg-amber-500 text-slate-950 font-bold ring-1 ring-amber-400'
-              : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
-          }`}
-        >
-          <Layers className="w-3.5 h-3.5 text-amber-700" />
-          <span>ภูมิปัญญาย้อมครามสกลนคร (Indigo Tech)</span>
-        </button>
-        <button
-          onClick={() => setSelectedCategory('water')}
-          className={`px-3.5 py-1.5 rounded-lg font-medium transition-colors flex items-center space-x-1.5 ${
-            selectedCategory === 'water'
-              ? 'bg-blue-900 text-white font-bold'
-              : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
-          }`}
-        >
-          <Database className="w-3.5 h-3.5 text-blue-600" />
-          <span>การจัดการน้ำ & ภัยแล้งลุ่มน้ำก่ำ (Water AI)</span>
-        </button>
-      </div>
+      {/* ── Empty state: no lineages at all ──────────────────────────── */}
+      {families.length === 0 && (
+        <div className="bg-white p-10 rounded-2xl border border-dashed border-slate-300 text-center space-y-3">
+          <Link2Off className="w-10 h-10 text-slate-300 mx-auto" />
+          <h3 className="font-display font-bold text-slate-800">ยังไม่มีสายการต่อยอดในระบบ</h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+            เมื่อโครงงานถูก "ต่อยอด" จะเกิดเส้นเชื่อม DNA จากรุ่นพี่สู่รุ่นน้อง
+            แผนภูมิวิวัฒนาการจะปรากฏขึ้นที่นี่โดยอัตโนมัติ
+          </p>
+        </div>
+      )}
 
-      {/* VIEW MODE 1: SEQUENTIAL PIPELINE VIEW */}
+      {/* ── Unlinked notice (non-blocking info strip) ───────────────── */}
+      {families.length > 0 && unlinked.length > 0 && (
+        <div className="bg-amber-50/70 border border-amber-200 rounded-xl px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-amber-900">
+          <Link2Off className="w-4 h-4 shrink-0" />
+          <span><strong>{unlinked.length}</strong> โครงงานรอเชื่อมสาย:</span>
+          {unlinked.slice(0, 4).map(p => (
+            <button
+              key={p.id}
+              onClick={() => onSelectProject(p)}
+              className="font-semibold underline decoration-amber-300 underline-offset-2 hover:text-amber-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500 rounded-sm"
+            >
+              {p.title_th}
+            </button>
+          ))}
+          {unlinked.length > 4 && <span>+{unlinked.length - 4} รายการ</span>}
+        </div>
+      )}
+
+      {/* ═══ VIEW 1 · PIPELINE with DNA helix spine ═══ */}
       {viewMode === 'pipeline' && (
         <div className="space-y-8">
-          
-          {/* FAMILY 1: Indigo Innovation */}
-          {(selectedCategory === 'all' || selectedCategory === 'indigo') && (
-            <section className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-soft space-y-6">
-              
-              {/* Family Header */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 pb-4 gap-2">
-                <div>
-                  <div className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 bg-amber-100 text-amber-900 text-xs font-bold rounded-md mb-1">
-                    <span>สายวิวัฒนาการที่ 1 · ภูมิปัญญาครามสกลนคร</span>
+          {families.map(family => {
+            const acc = FAMILY_ACCENTS[family.index % FAMILY_ACCENTS.length];
+            const root = family.mainChain[0];
+            const chainAssets = family.mainChain.reduce((n, p) => n + (p.assets?.length ?? 0), 0);
+
+            return (
+              <section
+                key={family.index}
+                className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-soft space-y-6"
+              >
+                {/* Family header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 pb-4 gap-3">
+                  <div className="min-w-0">
+                    <div className={`inline-flex items-center space-x-1.5 px-2.5 py-0.5 text-xs font-bold rounded-md mb-1.5 ${acc.chip}`}>
+                      <GitBranch className="w-3.5 h-3.5" />
+                      <span>สายวิวัฒนาการที่ {family.index + 1}</span>
+                    </div>
+                    <h3 className="font-display text-lg font-bold text-slate-900 leading-snug">
+                      {family.mainChain.length <= 3
+                        ? family.mainChain.map(p => p.title_th).join('  ➡️  ')
+                        : `${family.mainChain[0].title_th}  ➡️ … ➡️  ${family.mainChain[family.mainChain.length - 1].title_th}`}
+                    </h3>
                   </div>
-                  <h3 className="font-display text-lg font-bold text-slate-900">
-                    ยกระดับหัตถกรรมครามด้วย IoT ➡️ Computer Vision AI ➡️ Autonomous Drone
-                  </h3>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => { setDiffFamilyIdx(family.index); setViewMode('diff'); }}
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors"
+                    >
+                      ดู Diff Matrix
+                    </button>
+                    <button
+                      onClick={() => onOpenInceptionStudio(family.mainChain[family.mainChain.length - 1])}
+                      className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded-lg shadow-xs flex items-center space-x-1.5 transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                      <span>ต่อยอด Gen {family.levels.length + 1}</span>
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => {
-                      setViewMode('diff');
-                      setDiffFamily('indigo');
-                    }}
-                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center space-x-1"
-                  >
-                    <Table className="w-3.5 h-3.5 text-slate-600" />
-                    <span>ดู Diff Matrix</span>
-                  </button>
-
-                  <button
-                    onClick={() => onOpenInceptionStudio(projMap.get('proj-6') || projMap.get('proj-2')!)}
-                    className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded-lg shadow-xs flex items-center space-x-1.5 transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                    <span>ต่อยอดเป็น Gen 4</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Generation Pipeline Nodes with Visual Direction Connectors */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 relative items-stretch">
-                
-                {/* Gen 1: Proj 1 */}
-                {projMap.get('proj-1') && (
-                  <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 flex flex-col justify-between space-y-4">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="px-2.5 py-0.5 bg-slate-900 text-amber-300 font-mono text-xs font-bold rounded-md">
-                          GEN 1 · 2566
-                        </span>
-                        <span className="text-xs font-semibold text-slate-600">ME & EE (มก.ฉกส.)</span>
-                      </div>
-                      <h4 className="font-display font-bold text-slate-900 text-sm leading-snug">
-                        {projMap.get('proj-1')?.title_th}
-                      </h4>
-                      <p className="text-xs text-slate-600 mt-2 line-clamp-2 leading-relaxed border-l-2 border-slate-300 pl-2.5">
-                        {projMap.get('proj-1')?.dna_card?.problem_statement}
-                      </p>
-                    </div>
-
-                    <div className="space-y-3">
-                      {/* Heritage Tag */}
-                      <div className="p-2 bg-white rounded-lg border border-slate-200 text-[11px] text-slate-700 font-medium flex items-center space-x-1.5">
-                        <Database className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span className="truncate">ผลิต: วงจรเซ็นเซอร์ pH/Temp + Dataset สีคราม</span>
-                      </div>
-
-                      <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
-                        <span className="text-slate-400 font-medium">สถานะ: สำเร็จ (ส่งมอบ)</span>
-                        <button
-                          onClick={() => onSelectProject(projMap.get('proj-1')!)}
-                          className="font-bold text-slate-900 hover:text-amber-700 flex items-center space-x-0.5"
-                        >
-                          <span>ดู DNA</span>
-                          <ArrowUpRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Gen 2: Proj 2 */}
-                {projMap.get('proj-2') && (
-                  <div className="bg-amber-50/40 p-5 rounded-xl border border-amber-300 flex flex-col justify-between space-y-4 relative">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="px-2.5 py-0.5 bg-amber-500 text-slate-950 font-mono text-xs font-bold rounded-md">
-                          GEN 2 · 2567
-                        </span>
-                        <span className="text-xs font-semibold text-slate-700">CS & CPE (มก.ฉกส.)</span>
-                      </div>
-                      <h4 className="font-display font-bold text-slate-900 text-sm leading-snug">
-                        {projMap.get('proj-2')?.title_th}
-                      </h4>
-                      <p className="text-xs text-slate-700 mt-2 line-clamp-2 leading-relaxed border-l-2 border-amber-400 pl-2.5">
-                        {projMap.get('proj-2')?.dna_card?.problem_statement}
-                      </p>
-                    </div>
-
-                    <div className="space-y-3">
-                      {/* Heritage Tag */}
-                      <div className="p-2 bg-white rounded-lg border border-amber-200 text-[11px] text-amber-950 font-medium flex items-center space-x-1.5">
-                        <Cpu className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                        <span className="truncate">สืบทอด: Dataset 2566 ➡️ โมเดล YOLOv8 AI</span>
-                      </div>
-
-                      <div className="pt-2 border-t border-amber-200 flex items-center justify-between text-xs">
-                        <span className="text-amber-800 font-medium">ความแม่นยำ 94.2%</span>
-                        <button
-                          onClick={() => onSelectProject(projMap.get('proj-2')!)}
-                          className="font-bold text-slate-900 hover:text-amber-700 flex items-center space-x-0.5"
-                        >
-                          <span>ดู DNA</span>
-                          <ArrowUpRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Gen 3: Proj 6 */}
-                {projMap.get('proj-6') && (
-                  <div className="bg-slate-50 p-5 rounded-xl border border-dashed border-amber-400 flex flex-col justify-between space-y-4">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="px-2.5 py-0.5 bg-slate-900 text-amber-300 font-mono text-xs font-bold rounded-md">
-                          GEN 3 · 2568 (กำลังพัฒนา)
-                        </span>
-                        <span className="text-xs font-semibold text-slate-600">ME & CPE (มก.ฉกส.)</span>
-                      </div>
-                      <h4 className="font-display font-bold text-slate-900 text-sm leading-snug">
-                        {projMap.get('proj-6')?.title_th}
-                      </h4>
-                      <p className="text-xs text-slate-600 mt-2 line-clamp-2 leading-relaxed border-l-2 border-slate-300 pl-2.5">
-                        {projMap.get('proj-6')?.abstract_th}
-                      </p>
-                    </div>
-
-                    <div className="space-y-3">
-                      {/* Heritage Tag */}
-                      <div className="p-2 bg-white rounded-lg border border-slate-200 text-[11px] text-slate-800 font-medium flex items-center space-x-1.5">
-                        <Layers className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                        <span className="truncate">สืบทอด: โมเดล AI 2567 ➡️ โดรน Edge AI บินสำรวจ</span>
-                      </div>
-
-                      <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
-                        <button
-                          onClick={() => onOpenInceptionStudio(projMap.get('proj-6')!)}
-                          className="font-bold text-amber-700 hover:text-amber-800 flex items-center space-x-1"
-                        >
-                          <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                          <span>ต่อยอดโครงงานนี้</span>
-                        </button>
-                        <button
-                          onClick={() => onSelectProject(projMap.get('proj-6')!)}
-                          className="font-bold text-slate-900 hover:text-amber-700 flex items-center space-x-0.5"
-                        >
-                          <span>ดู DNA</span>
-                          <ArrowUpRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-              </div>
-
-              {/* Lineage Summary Callout */}
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-start space-x-3 text-xs text-slate-700">
-                <GitFork className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                {/* Generations along the DNA spine */}
                 <div>
-                  <strong className="text-slate-900 font-bold">ผลกระทบเชิงโครงสร้าง (Lineage Impact):</strong>
-                  <p className="mt-0.5 leading-relaxed">
-                    การส่งต่อข้อมูลเซ็นเซอร์หมักครามจากรุ่นพี่ (ME 2566) ช่วยให้นิสิตสาขาวิทยาการคอมฯ (CS 2567) พัฒนา AI ตรวจเฉดสีได้ทันทีโดยไม่ต้องเริ่มต้นเก็บตัวอย่างสีใหม่ และส่งต่อโมเดลไปติดตั้งบนโดรนสำรวจแปลงคราม (2568) ได้อย่างไร้รอยต่อ
+                  {family.levels.map((levelProjects, lvl) => (
+                    <React.Fragment key={lvl}>
+                      <div className={`md:grid md:grid-cols-[1fr_72px_1fr] items-stretch`}>
+                        <div className={lvl % 2 === 1 ? 'md:col-start-1 order-2 md:order-none' : 'md:col-start-3'}>
+                          <div
+                            className={
+                              levelProjects.length > 1
+                                ? 'grid sm:grid-cols-2 gap-4'
+                                : ''
+                            }
+                          >
+                            {levelProjects.map(p => (
+                              <GenCard
+                                key={p.id}
+                                project={p}
+                                level={lvl}
+                                edgeFromParent={parentEdgeOf.get(p.id)}
+                                onOpen={() => onSelectProject(p)}
+                                onExtend={() => onOpenInceptionStudio(p)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <div className="hidden md:block" /> {/* spacer cell */}
+                      </div>
+
+                      {/* Helix connector to the next generation */}
+                      {lvl < family.levels.length - 1 && (
+                        <DnaHelixSegment
+                          uid={`p${family.index}-${lvl}`}
+                          colorA={acc.a}
+                          colorB={acc.b}
+                        />
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
+
+                {/* Impact summary — computed, not written */}
+                <div className="flex items-start space-x-2.5 bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-700 leading-relaxed">
+                  <Dna className="w-4 h-4 mt-0.5 shrink-0 text-slate-500" />
+                  <p>
+                    <strong className="text-slate-900">ผลกระทบสายต่อยอด:</strong>{' '}
+                    ออกเดินทางจาก «{root?.title_th ?? 'ไม่มีข้อมูล'}» ({root?.academic_year ?? '—'})
+                    ต่อยอดแล้ว <strong>{Math.max(0, family.members.size - 1)}</strong> โครงงานใน{' '}
+                    <strong>{family.levels.length}</strong> รุ่น · ทรัพยากรบนสายหลักหมุนเวียนใช้ซ้ำ{' '}
+                    <strong>{chainAssets}</strong> รายการ
                   </p>
                 </div>
-              </div>
-            </section>
-          )}
-
-          {/* FAMILY 2: Water & Drought AI */}
-          {(selectedCategory === 'all' || selectedCategory === 'water') && (
-            <section className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-soft space-y-6">
-              
-              {/* Family Header */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 pb-4 gap-2">
-                <div>
-                  <div className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 bg-blue-100 text-blue-900 text-xs font-bold rounded-md mb-1">
-                    <span>สายวิวัฒนาการที่ 2 · การจัดการน้ำและภัยแล้ง</span>
-                  </div>
-                  <h3 className="font-display text-lg font-bold text-slate-900">
-                    ระบบตรวจวัดน้ำอัจฉริยะลุ่มน้ำก่ำ (LoRaWAN IoT ➡️ Deep Learning LSTM AI)
-                  </h3>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => {
-                      setViewMode('diff');
-                      setDiffFamily('water');
-                    }}
-                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center space-x-1"
-                  >
-                    <Table className="w-3.5 h-3.5 text-slate-600" />
-                    <span>ดู Diff Matrix</span>
-                  </button>
-
-                  <button
-                    onClick={() => onOpenInceptionStudio(projMap.get('proj-4')!)}
-                    className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded-lg shadow-xs flex items-center space-x-1.5 transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                    <span>ต่อยอดเป็น Gen 3</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Generation Pipeline Nodes */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                
-                {/* Gen 1: Proj 3 */}
-                {projMap.get('proj-3') && (
-                  <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 flex flex-col justify-between space-y-4">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="px-2.5 py-0.5 bg-slate-900 text-amber-300 font-mono text-xs font-bold rounded-md">
-                          GEN 1 · 2566
-                        </span>
-                        <span className="text-xs font-semibold text-slate-600">EE (วิศวกรรมไฟฟ้า)</span>
-                      </div>
-                      <h4 className="font-display font-bold text-slate-900 text-sm">
-                        {projMap.get('proj-3')?.title_th}
-                      </h4>
-                      <p className="text-xs text-slate-600 mt-2 line-clamp-2 leading-relaxed border-l-2 border-slate-300 pl-2.5">
-                        {projMap.get('proj-3')?.abstract_th}
-                      </p>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="p-2 bg-white rounded-lg border border-slate-200 text-[11px] text-slate-700 font-medium flex items-center space-x-1.5">
-                        <Cpu className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                        <span className="truncate">ผลิต: โครงข่ายทุ่นเซ็นเซอร์ LoRaWAN ส่งไกล 10 กม.</span>
-                      </div>
-
-                      <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
-                        <span className="text-slate-400 font-medium">สถานะ: สำเร็จ (ติดตั้งจริง)</span>
-                        <button
-                          onClick={() => onSelectProject(projMap.get('proj-3')!)}
-                          className="font-bold text-slate-900 hover:text-amber-700 flex items-center space-x-0.5"
-                        >
-                          <span>ดู DNA</span>
-                          <ArrowUpRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Gen 2: Proj 4 */}
-                {projMap.get('proj-4') && (
-                  <div className="bg-blue-50/40 p-5 rounded-xl border border-blue-200 flex flex-col justify-between space-y-4">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="px-2.5 py-0.5 bg-blue-900 text-white font-mono text-xs font-bold rounded-md">
-                          GEN 2 · 2567
-                        </span>
-                        <span className="text-xs font-semibold text-slate-700">CPE (วิศวกรรมคอมพิวเตอร์)</span>
-                      </div>
-                      <h4 className="font-display font-bold text-slate-900 text-sm">
-                        {projMap.get('proj-4')?.title_th}
-                      </h4>
-                      <p className="text-xs text-slate-700 mt-2 line-clamp-2 leading-relaxed border-l-2 border-blue-400 pl-2.5">
-                        {projMap.get('proj-4')?.abstract_th}
-                      </p>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="p-2 bg-white rounded-lg border border-blue-200 text-[11px] text-blue-950 font-medium flex items-center space-x-1.5">
-                        <Database className="w-3.5 h-3.5 text-blue-700 shrink-0" />
-                        <span className="truncate">สืบทอด: ข้อมูล LoRa ➡️ AI LSTM ทำนายน้ำแล้งล่วงหน้า 14 วัน</span>
-                      </div>
-
-                      <div className="pt-2 border-t border-blue-200 flex items-center justify-between text-xs">
-                        <button
-                          onClick={() => onOpenInceptionStudio(projMap.get('proj-4')!)}
-                          className="font-bold text-blue-800 hover:text-blue-950 flex items-center space-x-1"
-                        >
-                          <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                          <span>ต่อยอดโครงงานนี้</span>
-                        </button>
-                        <button
-                          onClick={() => onSelectProject(projMap.get('proj-4')!)}
-                          className="font-bold text-slate-900 hover:text-amber-700 flex items-center space-x-0.5"
-                        >
-                          <span>ดู DNA</span>
-                          <ArrowUpRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-              </div>
-            </section>
-          )}
-
+              </section>
+            );
+          })}
         </div>
       )}
 
-      {/* VIEW MODE 2: INTERACTIVE TREE MAP VIEW */}
-      {viewMode === 'tree' && (
+      {/* ═══ VIEW 2 · TREE with bézier genealogy ═══ */}
+      {viewMode === 'tree' && families.length > 0 && (
         <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-soft space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div>
-              <h3 className="font-display text-lg font-bold text-slate-900">
-                ผังโครงข่ายสายสัมพันธ์ข้ามรุ่น (Evolution Tree Map)
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                คลิกที่โหนดโครงงานเพื่อเปิดดูพิมพ์เขียว หรือกดปุ่มต่อยอดเพื่อเริ่มโครงงานใหม่
-              </p>
-            </div>
+          <div>
+            <h3 className="font-display text-lg font-bold text-slate-900">
+              ผังโครงข่ายสายสัมพันธ์ข้ามรุ่น (Evolution Tree)
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              เส้น DNA เชื่อมจากรุ่นแม่สู่รุ่นต่อยอด · คลิกโหนดเพื่อเปิด DNA Card
+            </p>
           </div>
 
-          {/* Interactive Visual Graph Canvas */}
-          <div className="p-8 bg-slate-50 rounded-xl border border-slate-200 overflow-x-auto">
-            <div className="min-w-[700px] space-y-8">
-              
-              {/* Tree Branch 1: Indigo Innovation */}
-              <div className="space-y-3">
-                <div className="text-xs font-mono font-bold text-amber-800 uppercase tracking-wider">
-                  Branch A: หัตถกรรมคราม (IoT ➡️ Vision AI ➡️ Drone)
-                </div>
-                <div className="flex items-center space-x-4">
-                  {/* Node 1 */}
-                  <div 
-                    onClick={() => onSelectProject(projMap.get('proj-1')!)}
-                    className="p-4 bg-white hover:bg-amber-50 rounded-xl border-2 border-slate-300 hover:border-amber-500 cursor-pointer w-64 shadow-xs transition-colors"
-                  >
-                    <div className="text-[10px] font-mono font-bold text-slate-500">GEN 1 · 2566 (ME)</div>
-                    <div className="text-xs font-bold text-slate-900 mt-1 line-clamp-1">{projMap.get('proj-1')?.title_th}</div>
-                    <div className="text-[10px] text-emerald-700 mt-1">✓ พิมพ์เขียววงจร IoT</div>
-                  </div>
+          {families.map(family => {
+            const acc = FAMILY_ACCENTS[family.index % FAMILY_ACCENTS.length];
+            const pById = new Map(projects.map(p => [p.id, p]));
 
-                  <ArrowRight className="w-5 h-5 text-amber-500 shrink-0" />
+            /* Deterministic layout: DFS-preorder gives each node a row,
+               depth gives a column → zero DOM measuring needed. */
+            const ROW = 112;
+            const COL = 304;
+            const PADX = 20;
+            const NODE_W = 240;
+            const NODE_HALF_H = 44;
 
-                  {/* Node 2 */}
-                  <div 
-                    onClick={() => onSelectProject(projMap.get('proj-2')!)}
-                    className="p-4 bg-amber-50 hover:bg-amber-100/70 rounded-xl border-2 border-amber-400 hover:border-amber-600 cursor-pointer w-64 shadow-xs transition-colors"
-                  >
-                    <div className="text-[10px] font-mono font-bold text-amber-800">GEN 2 · 2567 (CS)</div>
-                    <div className="text-xs font-bold text-slate-900 mt-1 line-clamp-1">{projMap.get('proj-2')?.title_th}</div>
-                    <div className="text-[10px] text-amber-800 mt-1">✓ AI Model YOLOv8</div>
-                  </div>
+            const layout: { id: string; depth: number; row: number }[] = [];
+            const placed = new Set<string>();
+            let rowCursor = 0;
 
-                  <ArrowRight className="w-5 h-5 text-amber-500 shrink-0" />
+            const dfs = (id: string, depth: number) => {
+              if (placed.has(id)) return;
+              placed.add(id);
+              layout.push({ id, depth, row: rowCursor++ });
+              const kids = family.edges
+                .filter(e => e.parent_project_id === id && family.members.has(e.child_project_id))
+                .map(e => e.child_project_id)
+                .sort((a, b) =>
+                  (pById.get(a)?.academic_year ?? 0) - (pById.get(b)?.academic_year ?? 0)
+                );
+              kids.forEach(k => dfs(k, depth + 1));
+            };
+            family.roots.forEach(r => dfs(r.id, 0));
 
-                  {/* Node 3 */}
-                  <div 
-                    onClick={() => onSelectProject(projMap.get('proj-6')!)}
-                    className="p-4 bg-white hover:bg-amber-50 rounded-xl border-2 border-dashed border-amber-400 cursor-pointer w-64 shadow-xs transition-colors"
-                  >
-                    <div className="text-[10px] font-mono font-bold text-slate-500">GEN 3 · 2568 (ME/CPE)</div>
-                    <div className="text-xs font-bold text-slate-900 mt-1 line-clamp-1">{projMap.get('proj-6')?.title_th}</div>
-                    <div className="text-[10px] text-purple-700 mt-1">🚀 Autonomous Drone</div>
-                  </div>
+            const maxDepth = Math.max(...layout.map(n => n.depth), 0);
+            const width = PADX * 2 + (maxDepth + 1) * COL;
+            const height = Math.max(1, layout.length) * ROW;
 
-                  <button
-                    onClick={() => onOpenInceptionStudio(projMap.get('proj-6')!)}
-                    className="p-3 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl font-bold text-xs flex items-center space-x-1 shadow-xs shrink-0"
-                    title="ต่อยอดเป็น Gen 4"
-                  >
-                    <Plus className="w-4 h-4 stroke-[3]" />
-                    <span>Gen 4</span>
-                  </button>
+            return (
+              <div key={family.index} className="overflow-x-auto rounded-xl border border-slate-200 bg-slate-50/70">
+                <div className="relative" style={{ width, height }}>
+                  {/* connector layer */}
+                  <svg aria-hidden="true" className="absolute inset-0 pointer-events-none" width={width} height={height}>
+                    <defs>
+                      <linearGradient id={`tree-grad-${family.index}`} x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor={acc.a} stopOpacity="0.9" />
+                        <stop offset="100%" stopColor={acc.b} stopOpacity="0.9" />
+                      </linearGradient>
+                    </defs>
+
+                    {family.edges.map(edge => {
+                      const a = layout.find(n => n.id === edge.parent_project_id);
+                      const b = layout.find(n => n.id === edge.child_project_id);
+                      if (!a || !b) return null;
+                      const x1 = PADX + a.depth * COL + NODE_W;
+                      const y1 = a.row * ROW + NODE_HALF_H;
+                      const x2 = PADX + b.depth * COL;
+                      const y2 = b.row * ROW + NODE_HALF_H;
+                      const bend = Math.max(42, Math.abs(y2 - y1));
+                      return (
+                        <g key={edge.id} className="motion-reduce:hidden">
+                          <path
+                            d={`M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`}
+                            stroke={`url(#tree-grad-${family.index})`}
+                            strokeWidth="2.5"
+                            fill="none"
+                            strokeLinecap="round"
+                            className="dna-strand"
+                          />
+                          <circle cx={x2} cy={y2} r="4" fill="#fff" stroke={acc.a} strokeWidth="2" />
+                        </g>
+                      );
+                    })}
+                  </svg>
+
+                  {/* node layer */}
+                  {layout.map(n => {
+                    const p = pById.get(n.id);
+                    if (!p) return null;
+                    return (
+                      <button
+                        key={n.id}
+                        onClick={() => onSelectProject(p)}
+                        style={{
+                          left: PADX + n.depth * COL,
+                          top: n.row * ROW + NODE_HALF_H - 40
+                        }}
+                        className="absolute w-[240px] text-left bg-white hover:bg-amber-50/60 rounded-xl border-2 border-slate-200 hover:border-amber-500 shadow-xs p-3 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-600"
+                      >
+                        <span className="text-[10px] font-mono font-bold text-slate-500 flex items-center justify-between">
+                          <span>GEN {n.depth + 1}</span>
+                          <span>{p.academic_year}</span>
+                        </span>
+                        <span className="block text-[11px] font-bold text-slate-900 mt-1 leading-snug line-clamp-2">
+                          {p.title_th}
+                        </span>
+                        <span className="mt-1 inline-block px-1.5 py-px bg-slate-100 text-slate-600 rounded font-semibold text-[9px]">
+                          {STATUS_LABEL[p.status]}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-
-              {/* Tree Branch 2: Water & Climate */}
-              <div className="space-y-3 pt-6 border-t border-slate-200">
-                <div className="text-xs font-mono font-bold text-blue-800 uppercase tracking-wider">
-                  Branch B: การจัดการน้ำ (LoRaWAN ➡️ Deep Learning)
-                </div>
-                <div className="flex items-center space-x-4">
-                  {/* Node 1 */}
-                  <div 
-                    onClick={() => onSelectProject(projMap.get('proj-3')!)}
-                    className="p-4 bg-white hover:bg-blue-50 rounded-xl border-2 border-slate-300 hover:border-blue-500 cursor-pointer w-64 shadow-xs transition-colors"
-                  >
-                    <div className="text-[10px] font-mono font-bold text-slate-500">GEN 1 · 2566 (EE)</div>
-                    <div className="text-xs font-bold text-slate-900 mt-1 line-clamp-1">{projMap.get('proj-3')?.title_th}</div>
-                    <div className="text-[10px] text-blue-700 mt-1">✓ เครือข่ายทุ่น LoRa 10km</div>
-                  </div>
-
-                  <ArrowRight className="w-5 h-5 text-blue-500 shrink-0" />
-
-                  {/* Node 2 */}
-                  <div 
-                    onClick={() => onSelectProject(projMap.get('proj-4')!)}
-                    className="p-4 bg-blue-50 hover:bg-blue-100 rounded-xl border-2 border-blue-400 hover:border-blue-600 cursor-pointer w-64 shadow-xs transition-colors"
-                  >
-                    <div className="text-[10px] font-mono font-bold text-blue-800">GEN 2 · 2567 (CPE)</div>
-                    <div className="text-xs font-bold text-slate-900 mt-1 line-clamp-1">{projMap.get('proj-4')?.title_th}</div>
-                    <div className="text-[10px] text-emerald-700 mt-1">✓ AI LSTM พยากรณ์ภัยแล้ง</div>
-                  </div>
-
-                  <button
-                    onClick={() => onOpenInceptionStudio(projMap.get('proj-4')!)}
-                    className="p-3 bg-blue-900 hover:bg-blue-950 text-white rounded-xl font-bold text-xs flex items-center space-x-1 shadow-xs shrink-0"
-                    title="ต่อยอดเป็น Gen 3"
-                  >
-                    <Plus className="w-4 h-4 stroke-[3]" />
-                    <span>Gen 3</span>
-                  </button>
-                </div>
-              </div>
-
-            </div>
-          </div>
+            );
+          })}
         </div>
       )}
 
-      {/* VIEW MODE 3: EVOLUTION DIFF MATRIX */}
-      {viewMode === 'diff' && (
-        <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-soft space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div>
-              <h3 className="font-display text-lg font-bold text-slate-900">
-                ตารางเปรียบเทียบการสืบทอดและนวัตกรรมใหม่ (Evolution Diff Matrix)
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                ตรวจสอบความแปลกใหม่ (Novelty Score) และการนำทรัพยากรกลับมาใช้ซ้ำข้ามรุ่น
-              </p>
-            </div>
-
-            <div className="flex space-x-2 text-xs">
-              <button
-                onClick={() => setDiffFamily('indigo')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${
-                  diffFamily !== 'water' ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 text-slate-700'
-                }`}
-              >
-                สายคราม (Indigo)
-              </button>
-              <button
-                onClick={() => setDiffFamily('water')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${
-                  diffFamily === 'water' ? 'bg-blue-900 text-white' : 'bg-slate-100 text-slate-700'
-                }`}
-              >
-                สายน้ำ (Water)
-              </button>
+      {/* ═══ VIEW 3 · DIFF MATRIX ═══ */}
+      {viewMode === 'diff' && families.length > 0 && (
+        <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-soft space-y-5">
+          {/* Family switcher pills */}
+          <div className="flex items-center justify-between flex-wrap gap-3 border-b border-slate-100 pb-4">
+            <h3 className="font-display text-lg font-bold text-slate-900">
+              ตารางเปรียบเทียบพัฒนาการรายรุ่น (Diff Matrix)
+            </h3>
+            <div className="flex p-1 bg-slate-100 rounded-xl text-xs font-semibold">
+              {families.map(f => (
+                <button
+                  key={f.index}
+                  onClick={() => setDiffFamilyIdx(f.index)}
+                  aria-pressed={diffFamilyIdx === f.index}
+                  className={`px-3 py-1.5 rounded-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500 ${
+                    diffFamilyIdx === f.index
+                      ? 'bg-white shadow-xs font-bold text-slate-900 ring-1 ring-slate-200'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  สายที่ {f.index + 1}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Diff Matrix Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-100 text-slate-700 border-b border-slate-200">
-                  <th className="p-3.5 font-bold">หัวข้อการเปรียบเทียบ</th>
-                  <th className="p-3.5 font-bold">GEN 1 (รุ่นตั้งต้น 2566)</th>
-                  <th className="p-3.5 font-bold">GEN 2 (รุ่นขยายผล 2567)</th>
-                  <th className="p-3.5 font-bold">GEN 3 / แผนพัฒนา (2568)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                <tr>
-                  <td className="p-3.5 font-bold text-slate-900 bg-slate-50/70">คณะ & สาขาวิชา</td>
-                  <td className="p-3.5 text-slate-700">วิศวกรรมเครื่องกล & ไฟฟ้า (ME/EE)</td>
-                  <td className="p-3.5 text-slate-700">วิทยาการคอมพิวเตอร์ (CS)</td>
-                  <td className="p-3.5 text-slate-700">วิศวกรรมคอมพิวเตอร์ & เครื่องกล (CPE/ME)</td>
-                </tr>
-                <tr>
-                  <td className="p-3.5 font-bold text-slate-900 bg-slate-50/70">สถาปัตยกรรมหลัก</td>
-                  <td className="p-3.5 text-slate-700">Embedded IoT + เซ็นเซอร์ pH/Temp</td>
-                  <td className="p-3.5 text-slate-700">Web App + YOLOv8 Deep Learning</td>
-                  <td className="p-3.5 text-slate-700">Edge AI + Autonomous Drone Hardware</td>
-                </tr>
-                <tr>
-                  <td className="p-3.5 font-bold text-slate-900 bg-slate-50/70">ทรัพยากรที่สืบทอด (Reused Assets)</td>
-                  <td className="p-3.5 text-slate-500 font-mono">- (สารตั้งต้น)</td>
-                  <td className="p-3.5 text-emerald-800 font-medium bg-emerald-50/40">✓ Dataset ค่าสีคราม 1,200 ตัวอย่างจาก Gen 1</td>
-                  <td className="p-3.5 text-emerald-800 font-medium bg-emerald-50/40">✓ โมเดล AI และ API จาก Gen 2</td>
-                </tr>
-                <tr>
-                  <td className="p-3.5 font-bold text-slate-900 bg-slate-50/70">นวัตกรรมใหม่ (New Inventions)</td>
-                  <td className="p-3.5 text-slate-800">กล่องหมักครามควบคุมอุณหภูมิอัตโนมัติ</td>
-                  <td className="p-3.5 text-slate-800">ระบบจำแนกเฉดสีครามตามมาตรฐาน มอก.</td>
-                  <td className="p-3.5 text-slate-800">โดรนบินตรวจความสมบูรณ์ต้นครามรายแปลง</td>
-                </tr>
-                <tr>
-                  <td className="p-3.5 font-bold text-slate-900 bg-slate-50/70">คะแนนความแปลกใหม่ (Novelty Score)</td>
-                  <td className="p-3.5 font-bold text-slate-800">4.5 / 5.0</td>
-                  <td className="p-3.5 font-bold text-amber-700">4.8 / 5.0</td>
-                  <td className="p-3.5 font-bold text-purple-700">4.9 / 5.0</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          {(() => {
+            const family = families[Math.min(diffFamilyIdx, families.length - 1)];
+            const chain = family.mainChain;
+
+            if (!family || chain.length < 2) {
+              return (
+                <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-4 leading-relaxed">
+                  สายนี้มีเพียงรุ่นเดียว — ตาราง Diff จะเปิดใช้เมื่อมีการต่อยอดอย่างน้อยหนึ่งรุ่น
+                  (กดปุ่ม “ต่อยอด” เพื่อสร้าง Gen ถัดไป)
+                </p>
+              );
+            }
+
+            type Cell = React.ReactNode;
+            const rows: { label: string; cells: Cell[]; highlight?: boolean }[] = [
+              {
+                label: 'ภาควิชา & คณะ',
+                cells: chain.map(p =>
+                  [p.department?.name_th, p.department?.faculty?.short_name].filter(Boolean).join(' · ') || 'ไม่ระบุ'
+                )
+              },
+              { label: 'ปีการศึกษา', cells: chain.map(p => `พ.ศ. ${p.academic_year}`) },
+              { label: 'สถานะงานวิจัย', cells: chain.map(p => STATUS_LABEL[p.status]) },
+              {
+                label: 'คะแนนคุณภาพ (DNA Score)',
+                cells: chain.map((p, i) => (
+                  <span key={i} className={i === chain.length - 1 ? 'font-bold text-emerald-700' : ''}>
+                    {p.rating_score.toFixed(1)} / 5.0
+                  </span>
+                ))
+              },
+              { label: 'ผู้เข้าชม', cells: chain.map(p => `${p.view_count.toLocaleString('th-TH')} ครั้ง`) },
+              { label: 'ถูกนำไปต่อยอด', cells: chain.map(p => `${p.fork_count} โครงงาน`) },
+              {
+                label: 'ทรัพยากรเปิดให้ใช้ซ้ำ',
+                cells: chain.map(p => `${(p.assets ?? []).length} รายการ`)
+              },
+              {
+                label: 'เทคโนโลยีหลัก',
+                cells: chain.map(p =>
+                  (p.dna_card?.tech_stack ?? []).slice(0, 3).join(', ') || '—'
+                )
+              },
+              {
+                label: 'สิ่งที่ได้รับจากรุ่นก่อน',
+                highlight: true,
+                cells: chain.map((p, i) => {
+                  const edge = parentEdgeOf.get(p.id);
+                  if (i === 0 || !edge)
+                    return <span key={i} className="text-slate-400">— (สารตั้งต้น)</span>;
+                  return (
+                    <span key={i} className="text-emerald-800 font-medium bg-emerald-50/60 rounded px-1 py-0.5 inline-block">
+                      {EXTENSION_TYPE_LABEL[edge.extension_type]}: {edge.evolution_summary}
+                    </span>
+                  );
+                })
+              }
+            ];
+
+            return (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-700">
+                      <th className="p-3.5 font-bold whitespace-nowrap">หัวข้อการเปรียบเทียบ</th>
+                      {chain.map((p, i) => (
+                        <th key={p.id} className={`p-3.5 font-bold whitespace-nowrap ${i === chain.length - 1 ? 'bg-amber-50/80' : ''}`}>
+                          GEN {i + 1}
+                          <span className="block text-[10px] font-medium text-slate-500 normal-case">{p.title_th}</span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {rows.map(row => (
+                      <tr key={row.label}>
+                        <td className="p-3.5 font-bold text-slate-900 bg-slate-50/70 whitespace-nowrap align-top">
+                          {row.label}
+                        </td>
+                        {row.cells.map((cell, ci) => (
+                          <td
+                            key={ci}
+                            className={`p-3.5 align-top ${row.highlight ? 'bg-emerald-50/30' : ''}`}
+                          >
+                            {cell}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
         </div>
       )}
-
     </div>
   );
 };

@@ -85,3 +85,36 @@ h1, h2, h3, h4, h5, h6, .font-display {
 .dna-marquee-track > span {
   padding-right: 4rem;
 }
+
+/* ── Lineage page · DNA double-helix connectors ──────────────────────
+ * Strands carry a moving dash (flow direction), base-pair rungs pulse.
+ * All disabled under prefers-reduced-motion. */
+@keyframes dna-strand-flow {
+  to { stroke-dashoffset: -72; }
+}
+
+@keyframes dna-rung-pulse {
+  0%, 100% { opacity: 0.25; }
+  50%      { opacity: 0.9; }
+}
+
+.dna-strand {
+  stroke-dasharray: 5 7;
+  animation: dna-strand-flow 1.5s linear infinite;
+}
+
+.dna-strand--rev {
+  animation-direction: reverse;
+}
+
+.dna-rung {
+  animation: dna-rung-pulse 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dna-strand,
+  .dna-strand--rev,
+  .dna-rung {
+    animation: none;
+  }
+}
