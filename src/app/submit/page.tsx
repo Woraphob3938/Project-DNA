@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -27,8 +27,28 @@ import {
 import { GithubIcon } from '@/components/icons/GithubIcon';
 import { Logo } from '@/components/layout/Logo';
 import { useSubmitForm } from '@/hooks/useSubmitForm';
+import { ACCEPTED_FILE_EXTENSIONS } from '@/lib/storageService';
+
+// ---------------------------------------------------------------------------
+// Shared design tokens for the submission wizard. Every step of "เพิ่มโปรเจกต์"
+// renders its form controls through these single-source classes so labels,
+// inputs, selects and textareas stay pixel-identical across steps 1-4.
+// ---------------------------------------------------------------------------
+const LABEL_CLS = 'block text-xs font-bold text-slate-800';
+const LABEL_ICON_CLS = 'flex items-center space-x-1.5';
+const INPUT_CLS =
+  'w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 focus:bg-white text-slate-900 placeholder-slate-400';
+/** Same as INPUT_CLS but monospaced, for URLs / identifiers. */
+const INPUT_MONO_CLS = `${INPUT_CLS} font-mono`;
+const SELECT_CLS =
+  'w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 text-slate-900 font-semibold';
+const TEXTAREA_CLS =
+  'w-full p-4 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 focus:bg-white text-slate-900 placeholder-slate-400 leading-relaxed font-sans';
 
 export default function SubmitProjectPage() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+
   const {
     faculties,
     departments,
@@ -45,6 +65,7 @@ export default function SubmitProjectPage() {
     isAiExtracting, aiExtractedSuccess, handleAiExtract,
     githubUrl, setGithubUrl, datasetUrl, setDatasetUrl,
     modelUrl, setModelUrl, paperUrl, setPaperUrl,
+    uploadedFiles, isUploadingFiles, handleFilesSelected, handleRemoveUploadedFile,
     limitations, setLimitations, suggestedIdeas, setSuggestedIdeas,
     isSubmitting, submitSuccess, errorMessage, setErrorMessage,
     handlePublish
@@ -190,7 +211,7 @@ export default function SubmitProjectPage() {
                     value={titleTh}
                     onChange={(e) => setTitleTh(e.target.value)}
                     placeholder="เช่น ระบบตรวจสอบคุณภาพผ้าย้อมครามด้วย Computer Vision และ IoT"
-                    className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 focus:bg-white text-slate-900 placeholder-slate-400"
+                    className={INPUT_CLS}
                     required
                   />
                 </div>
@@ -205,7 +226,7 @@ export default function SubmitProjectPage() {
                     value={titleEn}
                     onChange={(e) => setTitleEn(e.target.value)}
                     placeholder="e.g. Computer Vision-based Indigo Dye Quality Inspection with IoT"
-                    className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 focus:bg-white text-slate-900 placeholder-slate-400"
+                    className={INPUT_CLS}
                   />
                 </div>
 
@@ -214,14 +235,14 @@ export default function SubmitProjectPage() {
                   
                   {/* Faculty */}
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-800 flex items-center space-x-1">
+                    <label className={`${LABEL_CLS} ${LABEL_ICON_CLS}`}>
                       <GraduationCap className="w-3.5 h-3.5 text-amber-600" />
                       <span>คณะ</span>
                     </label>
                     <select
                       value={selectedFacultyId}
                       onChange={(e) => handleFacultyChange(e.target.value)}
-                      className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 text-slate-900 font-semibold"
+                      className={SELECT_CLS}
                     >
                       {faculties.map((f) => (
                         <option key={f.id} value={f.id}>{f.short_name} - {f.name_th}</option>
@@ -231,14 +252,14 @@ export default function SubmitProjectPage() {
 
                   {/* Department */}
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-800 flex items-center space-x-1">
+                    <label className={`${LABEL_CLS} ${LABEL_ICON_CLS}`}>
                       <Building className="w-3.5 h-3.5 text-amber-600" />
                       <span>สาขาวิชา</span>
                     </label>
                     <select
                       value={selectedDeptId}
                       onChange={(e) => setSelectedDeptId(e.target.value)}
-                      className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 text-slate-900 font-semibold"
+                      className={SELECT_CLS}
                     >
                       {availableDepts.map((d) => (
                         <option key={d.id} value={d.id}>{d.code} - {d.name_th}</option>
@@ -248,13 +269,13 @@ export default function SubmitProjectPage() {
 
                   {/* Academic Year */}
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-800">
+                    <label className={LABEL_CLS}>
                       ปีการศึกษา (พ.ศ.)
                     </label>
                     <select
                       value={academicYear}
                       onChange={(e) => setAcademicYear(Number(e.target.value))}
-                      className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 text-slate-900 font-semibold"
+                      className={SELECT_CLS}
                     >
                       <option value={2568}>2568 (ปัจจุบัน)</option>
                       <option value={2567}>2567</option>
@@ -275,7 +296,7 @@ export default function SubmitProjectPage() {
                     value={advisorName}
                     onChange={(e) => setAdvisorName(e.target.value)}
                     placeholder="เช่น ผศ.ดร.สมชาย ใจดี"
-                    className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 text-slate-900 placeholder-slate-400"
+                    className={INPUT_CLS}
                   />
                 </div>
 
@@ -381,7 +402,7 @@ export default function SubmitProjectPage() {
                     value={abstractTh}
                     onChange={(e) => setAbstractTh(e.target.value)}
                     placeholder="วางเนื้อหาบทคัดย่อโครงงานภาษาไทยหรือภาษาอังกฤษที่นี่..."
-                    className="w-full p-4 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 focus:bg-white text-slate-900 placeholder-slate-400 leading-relaxed font-sans"
+                    className={TEXTAREA_CLS}
                   />
                 </div>
 
@@ -402,7 +423,7 @@ export default function SubmitProjectPage() {
                     value={problemStatement}
                     onChange={(e) => setProblemStatement(e.target.value)}
                     placeholder="ปัญหาที่โครงงานนี้ต้องการแก้ไข"
-                    className="w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 text-slate-900"
+                    className={INPUT_CLS}
                   />
                 </div>
 
@@ -416,7 +437,7 @@ export default function SubmitProjectPage() {
                     value={proposedSolution}
                     onChange={(e) => setProposedSolution(e.target.value)}
                     placeholder="เทคนิค วิธีการ หรืออัลกอริทึมที่ใช้"
-                    className="w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 text-slate-900"
+                    className={INPUT_CLS}
                   />
                 </div>
 
@@ -430,7 +451,7 @@ export default function SubmitProjectPage() {
                     value={techStackInput}
                     onChange={(e) => setTechStackInput(e.target.value)}
                     placeholder="เช่น Python, PyTorch, YOLOv8, ESP32, MQTT, React"
-                    className="w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 text-slate-900 font-mono"
+                    className={INPUT_MONO_CLS}
                   />
                 </div>
 
@@ -444,7 +465,7 @@ export default function SubmitProjectPage() {
                     value={keyResults}
                     onChange={(e) => setKeyResults(e.target.value)}
                     placeholder="เช่น ความแม่นยำ 94.2%, ประหยัดพลังงาน 30%, ส่งสัญญาณไกล 10 กม."
-                    className="w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 text-slate-900"
+                    className={INPUT_CLS}
                   />
                 </div>
 
@@ -477,8 +498,143 @@ export default function SubmitProjectPage() {
                     ขั้นตอนที่ 3: คลังทรัพยากรสำหรับส่งต่อรุ่นน้อง (Reusable Assets)
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    แนบลิงก์ GitHub, ชุดข้อมูล (Dataset), หรือรายงาน เพื่อให้นิสิตรุ่นต่อไปไม่ต้องเริ่มจากศูนย์
+                    อัปโหลดไฟล์จากเครื่องของคุณโดยตรง หรือแนบลิงก์ GitHub / Dataset / รายงาน เพื่อให้นิสิตรุ่นต่อไปไม่ต้องเริ่มจากศูนย์
                   </p>
+                </div>
+
+                {/* Upload Files from Device */}
+                <div className="space-y-2">
+                  <label className={`${LABEL_CLS} ${LABEL_ICON_CLS}`}>
+                    <Upload className="w-4 h-4 text-amber-600" />
+                    <span>อัปโหลดไฟล์ทรัพยากรจากเครื่อง (Upload Files)</span>
+                  </label>
+
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-label="เลือกไฟล์เพื่ออัปโหลด"
+                    onClick={() => fileInputRef.current?.click()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        fileInputRef.current?.click();
+                      }
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDragOver(true);
+                    }}
+                    onDragLeave={() => setIsDragOver(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragOver(false);
+                      handleFilesSelected(e.dataTransfer.files);
+                    }}
+                    className={`rounded-2xl border-2 border-dashed p-6 text-center cursor-pointer transition-colors focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                      isDragOver
+                        ? 'border-amber-400 bg-amber-50/80'
+                        : 'border-slate-300 bg-slate-50 hover:border-amber-400 hover:bg-amber-50/40'
+                    }`}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      hidden
+                      accept={ACCEPTED_FILE_EXTENSIONS}
+                      disabled={isUploadingFiles}
+                      onChange={(e) => {
+                        handleFilesSelected(e.target.files);
+                        // Reset so picking the same file again still fires onChange
+                        e.target.value = '';
+                      }}
+                    />
+                    <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center">
+                      <Upload className="w-6 h-6" />
+                    </div>
+                    <p className="mt-3 text-xs font-bold text-slate-800">
+                      {isUploadingFiles ? 'กำลังอัปโหลด...' : 'คลิกเพื่อเลือกไฟล์ หรือลากไฟล์มาวางที่นี่'}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
+                      ซอร์สโค้ด (ZIP), ชุดข้อมูล (CSV/XLSX), รายงาน (PDF/DOCX), โมเดล AI (.pt/.onnx), พิมพ์เขียว (STL/DWG)<br />
+                      ไม่เกิน 25 MB ต่อไฟล์ • สูงสุด 10 ไฟล์ • จำเป็นต้องเข้าสู่ระบบก่อนอัปโหลด
+                    </p>
+                  </div>
+
+                  {/* Uploaded Files List */}
+                  {uploadedFiles.length > 0 && (
+                    <ul className="space-y-2 pt-1">
+                      {uploadedFiles.map((file) => (
+                        <li
+                          key={file.id}
+                          className={`p-3 rounded-xl border flex items-start justify-between gap-3 transition-colors ${
+                            file.status === 'error'
+                              ? 'bg-red-50 border-red-200'
+                              : 'bg-slate-50 border-slate-200'
+                          }`}
+                        >
+                          <div className="flex items-start space-x-2.5 min-w-0 flex-1">
+                            <div
+                              className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center ${
+                                file.status === 'error'
+                                  ? 'bg-red-100 text-red-600'
+                                  : file.status === 'uploading'
+                                    ? 'bg-white text-amber-600'
+                                    : 'bg-emerald-100 text-emerald-700'
+                              }`}
+                            >
+                              {file.status === 'uploading' ? (
+                                <span className="w-3.5 h-3.5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                              ) : file.status === 'error' ? (
+                                <AlertCircle className="w-4 h-4" />
+                              ) : (
+                                <CheckCircle2 className="w-4 h-4" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-slate-800 truncate">{file.fileName}</p>
+                              <p className="text-[11px] text-slate-500">{file.fileSizeLabel}</p>
+                              {file.status === 'uploading' && (
+                                <p className="text-[11px] text-amber-700 font-medium">กำลังอัปโหลด...</p>
+                              )}
+                              {file.status === 'done' && (
+                                <p className="text-[11px] text-emerald-700 font-bold flex items-center space-x-1">
+                                  <CheckCircle2 className="w-3 h-3 shrink-0" />
+                                  <span>อัปโหลดสำเร็จ — แนบเป็นทรัพยากรให้อัตโนมัติ</span>
+                                </p>
+                              )}
+                              {file.status === 'error' && (
+                                <p className="text-[11px] text-red-600 font-medium">{file.errorMessage}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-1 shrink-0">
+                            {file.publicUrl && (
+                              <a
+                                href={file.publicUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="เปิดดูไฟล์"
+                                className="w-7 h-7 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center transition-colors"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            )}
+                            {file.status !== 'uploading' && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveUploadedFile(file.id)}
+                                title="นำไฟล์ออก"
+                                className="w-7 h-7 rounded-lg bg-white hover:bg-red-50 hover:text-red-600 border border-slate-200 text-slate-500 flex items-center justify-center transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 {/* GitHub Code Repo */}
@@ -492,7 +648,7 @@ export default function SubmitProjectPage() {
                     value={githubUrl}
                     onChange={(e) => setGithubUrl(e.target.value)}
                     placeholder="https://github.com/your-username/your-project-repo"
-                    className="w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 text-slate-900 font-mono"
+                    className={INPUT_MONO_CLS}
                   />
                 </div>
 
@@ -507,7 +663,7 @@ export default function SubmitProjectPage() {
                     value={datasetUrl}
                     onChange={(e) => setDatasetUrl(e.target.value)}
                     placeholder="https://drive.google.com/... หรือ Kaggle Dataset URL"
-                    className="w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 text-slate-900 font-mono"
+                    className={INPUT_MONO_CLS}
                   />
                 </div>
 
@@ -522,7 +678,7 @@ export default function SubmitProjectPage() {
                     value={modelUrl}
                     onChange={(e) => setModelUrl(e.target.value)}
                     placeholder="https://huggingface.co/... หรือ ลิงก์ไฟล์โมเดล .pt / .onnx"
-                    className="w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 text-slate-900 font-mono"
+                    className={INPUT_MONO_CLS}
                   />
                 </div>
 
@@ -537,7 +693,7 @@ export default function SubmitProjectPage() {
                     value={paperUrl}
                     onChange={(e) => setPaperUrl(e.target.value)}
                     placeholder="https://... ลิงก์เอกสารรูปเล่มรายงาน"
-                    className="w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 text-slate-900 font-mono"
+                    className={INPUT_MONO_CLS}
                   />
                 </div>
 
@@ -584,7 +740,7 @@ export default function SubmitProjectPage() {
                     value={limitations}
                     onChange={(e) => setLimitations(e.target.value)}
                     placeholder="เช่น โมเดลยังตรวจจับได้เฉพาะช่วงแสงแดดจัด, เซ็นเซอร์ยังไม่ได้กันน้ำระดับ IP68, ยังไม่ได้ทำแอปบนมือถือ..."
-                    className="w-full p-3.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 text-slate-900 placeholder-slate-400"
+                    className={TEXTAREA_CLS}
                   />
                 </div>
 
@@ -598,7 +754,7 @@ export default function SubmitProjectPage() {
                     value={suggestedIdeas}
                     onChange={(e) => setSuggestedIdeas(e.target.value)}
                     placeholder="เช่น ต่อยอดขึ้นโดรนบินสำรวจ, เพิ่มระบบแจ้งเตือนผ่าน Line Notify, นำชุดข้อมูลไปสร้างโมเดล Transformer..."
-                    className="w-full p-3.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 text-slate-900 placeholder-slate-400"
+                    className={TEXTAREA_CLS}
                   />
                 </div>
 

@@ -4,7 +4,29 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { dnaService } from '@/lib/dnaService';
 import { addMyProjectId } from '@/hooks/useMyProjects';
+import {
+  uploadProjectFile,
+  removeProjectFile,
+  detectAssetTypeFromFileName,
+  formatFileSize,
+  MAX_FILES_PER_SUBMISSION,
+  type UploadedFileInfo
+} from '@/lib/storageService';
 import type { Project, ReusableAsset, ExtensionGap } from '@/types/dna';
+
+/** Live status of one file in the Step-3 uploader. */
+export type UploadedFileStatus = 'uploading' | 'done' | 'error';
+
+export interface UploadedFileEntry {
+  id: string;
+  fileName: string;
+  fileSizeLabel: string;
+  status: UploadedFileStatus;
+  errorMessage?: string;
+  /** Set once the file lives in Supabase Storage ('done'). */
+  storagePath?: string;
+  publicUrl?: string;
+}
 
 /**
  * All form state, AI-extraction and publish logic for the project submission
@@ -41,11 +63,15 @@ export function useSubmitForm() {
   const [isAiExtracting, setIsAiExtracting] = useState(false);
   const [aiExtractedSuccess, setAiExtractedSuccess] = useState(false);
 
-  // Form State: Step 3 Reusable Assets
+  // Form State: Step 3 Reusable Assets (links)
   const [githubUrl, setGithubUrl] = useState('');
   const [datasetUrl, setDatasetUrl] = useState('');
   const [modelUrl, setModelUrl] = useState('');
   const [paperUrl, setPaperUrl] = useState('');
+
+  // Form State: Step 3 Reusable Assets (uploaded files)
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileEntry[]>([]);
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
 
   // Form State: Step 4 Extension Gaps
   const [limitations, setLimitations] = useState('');
@@ -83,6 +109,78 @@ export function useSubmitForm() {
     const updated = [...studentAuthors];
     updated[index][field] = value;
     setStudentAuthors(updated);
+  };
+
+  /**
+   * Upload the files picked in Step 3 to Supabase Storage. Every file gets
+   * a live list entry immediately so the page can render per-file spinners
+   * / errors while uploads stream in. Slot-limited, sequential for clarity.
+   */
+  const handleFilesSelected = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+
+    const remainingSlots = MAX_FILES_PER_SUBMISSION - uploadedFiles.length;
+    if (remainingSlots <= 0) {
+      setErrorMessage(`อัปโหลดได้สูงสุด ${MAX_FILES_PER_SUBMISSION} ไฟล์ต่อโปรเจกต์`);
+      return;
+    }
+
+    const allFiles = Array.from(fileList);
+    const accepted = allFiles.slice(0, remainingSlots);
+    if (allFiles.length > remainingSlots) {
+      setErrorMessage(`เลือกได้อีกเพียง ${remainingSlots} ไฟล์ (จำกัด ${MAX_FILES_PER_SUBMISSION} ไฟล์ต่อโปรเจกต์)`);
+    }
+
+    setIsUploadingFiles(true);
+    setErrorMessage('');
+
+    for (const file of accepted) {
+      const entryId = `file-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      setUploadedFiles(prev => [
+        ...prev,
+        {
+          id: entryId,
+          fileName: file.name,
+          fileSizeLabel: formatFileSize(file.size),
+          status: 'uploading'
+        }
+      ]);
+
+      try {
+        const info: UploadedFileInfo = await uploadProjectFile(file);
+        setUploadedFiles(prev =>
+          prev.map(f =>
+            f.id === entryId
+              ? {
+                  ...f,
+                  status: 'done',
+                  storagePath: info.storagePath,
+                  publicUrl: info.publicUrl,
+                  fileSizeLabel: info.fileSizeLabel
+                }
+              : f
+          )
+        );
+      } catch (err) {
+        setUploadedFiles(prev =>
+          prev.map(f =>
+            f.id === entryId
+              ? { ...f, status: 'error', errorMessage: err instanceof Error ? err.message : 'อัปโหลดไม่สำเร็จ' }
+              : f
+          )
+        );
+      }
+    }
+
+    setIsUploadingFiles(false);
+  };
+
+  /** Remove one entry; completed files are also deleted from Storage. */
+  const handleRemoveUploadedFile = (id: string) => {
+    const target = uploadedFiles.find(f => f.id === id);
+    if (!target || target.status === 'uploading') return; // let in-flight finish
+    if (target.storagePath) void removeProjectFile(target.storagePath);
+    setUploadedFiles(prev => prev.filter(f => f.id !== id));
   };
 
   // Gemini Live AI DNA Extraction
@@ -140,6 +238,12 @@ export function useSubmitForm() {
       return;
     }
 
+    if (isUploadingFiles) {
+      setErrorMessage('กรุณารอให้อัปโหลดไฟล์ทั้งหมดเสร็จก่อนเผยแพร่');
+      setCurrentStep(3);
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMessage('');
 
@@ -193,6 +297,22 @@ export function useSubmitForm() {
           description: 'รายงานวิจัยฉบับสมบูรณ์และคู่มือการต่อยอด'
         });
       }
+
+      // Uploaded files become first-class ReusableAssets pointing into
+      // Storage — only entries that finished successfully are included.
+      uploadedFiles.forEach((file, index) => {
+        if (file.status !== 'done' || !file.publicUrl) return;
+        assets.push({
+          id: 'asset-upload-' + Date.now() + '-' + index,
+          project_id: '',
+          asset_type: detectAssetTypeFromFileName(file.fileName),
+          title: file.fileName,
+          resource_url: file.publicUrl,
+          download_count: 0,
+          description: 'ไฟล์แนบที่อัปโหลดผ่านคลังทรัพยากรของระบบ',
+          file_size: file.fileSizeLabel
+        });
+      });
 
       // Construct Extension Gaps
       const gaps: ExtensionGap[] = [];
@@ -285,6 +405,7 @@ export function useSubmitForm() {
     // step 3 — reusable assets
     githubUrl, setGithubUrl, datasetUrl, setDatasetUrl,
     modelUrl, setModelUrl, paperUrl, setPaperUrl,
+    uploadedFiles, isUploadingFiles, handleFilesSelected, handleRemoveUploadedFile,
     // step 4 — extension gaps
     limitations, setLimitations, suggestedIdeas, setSuggestedIdeas,
     // submission

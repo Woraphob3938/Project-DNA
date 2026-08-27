@@ -113,6 +113,61 @@ CREATE TABLE IF NOT EXISTS challenges (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- =========================================================================
+-- 9. STORAGE BUCKETS
+--    project-covers : project cover images (5 MB, images only)
+--    project-files  : reusable-asset uploads from the "เพิ่มโปรเจกต์" form
+--                     (25 MiB cap, mirrored client-side in
+--                      src/lib/storageService.ts — keep both in sync)
+--    Files must be written under <auth.uid>/... because the policies below
+--    scope every write to the first path segment.
+-- =========================================================================
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES
+  ('project-covers', 'project-covers', true, 5242880,
+   ARRAY['image/jpeg', 'image/png', 'image/webp']::text[]),
+  ('project-files', 'project-files', true, 26214400,
+   ARRAY[
+     'application/pdf',
+     'application/zip',
+     'application/x-zip-compressed',
+     'application/x-rar-compressed',
+     'application/vnd.rar',
+     'application/x-7z-compressed',
+     'application/octet-stream',
+     'text/plain',
+     'text/csv',
+     'text/markdown',
+     'application/json',
+     'application/xml',
+     'text/x-python',
+     'text/javascript',
+     'application/msword',
+     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+     'application/vnd.ms-excel',
+     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+     'application/vnd.ms-powerpoint',
+     'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+     'image/png',
+     'image/jpeg',
+     'image/webp'
+   ]::text[])
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- Storage RLS: public read; writes scoped to the owner's uid folder
+CREATE POLICY "Public read project covers" ON storage.objects FOR SELECT TO public USING (bucket_id = 'project-covers');
+CREATE POLICY "Users upload own project covers" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'project-covers' AND (storage.foldername(name))[1] = auth.uid()::text);
+CREATE POLICY "Users update own project covers" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'project-covers' AND (storage.foldername(name))[1] = auth.uid()::text) WITH CHECK (bucket_id = 'project-covers' AND (storage.foldername(name))[1] = auth.uid()::text);
+CREATE POLICY "Users delete own project covers" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'project-covers' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+CREATE POLICY "Public read project files" ON storage.objects FOR SELECT TO public USING (bucket_id = 'project-files');
+CREATE POLICY "Users upload own project files" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'project-files' AND (storage.foldername(name))[1] = auth.uid()::text);
+CREATE POLICY "Users update own project files" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'project-files' AND (storage.foldername(name))[1] = auth.uid()::text) WITH CHECK (bucket_id = 'project-files' AND (storage.foldername(name))[1] = auth.uid()::text);
+CREATE POLICY "Users delete own project files" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'project-files' AND (storage.foldername(name))[1] = auth.uid()::text);
+
 -- Indices for rapid querying
 CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
 CREATE INDEX IF NOT EXISTS idx_projects_year ON projects(academic_year);
