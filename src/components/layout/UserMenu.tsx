@@ -3,18 +3,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { 
-  LogIn, 
-  LogOut, 
-  ShieldCheck, 
-  PencilLine, 
-  Plus, 
-  ChevronDown, 
-  User, 
-  GraduationCap, 
-  Sparkles,
-  CheckCircle2,
-  FolderOpen
+import {
+  LogIn,
+  LogOut,
+  ShieldCheck,
+  ChevronDown
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 
@@ -102,28 +95,12 @@ export const UserMenu: React.FC = () => {
     router.refresh();
   };
 
-  const toggleRoleMode = (newRole: 'student' | 'faculty') => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('project_dna_demo_role', newRole);
-    }
-    setUser(prev => prev ? {
-      ...prev,
-      fullName: newRole === 'faculty' ? 'ผศ.ดร. นคร พัฒนา' : (prev.displayId.startsWith('b') ? 'นิสิตผู้พัฒนา' : prev.fullName),
-      role: newRole
-    } : {
-      fullName: 'ผศ.ดร. นคร พัฒนา',
-      displayId: 'nakorn.p@ku.th',
-      role: 'faculty'
-    });
-    setIsOpen(false);
-  };
-
   // Skeleton while the session is being checked
   if (loading) {
     return <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 animate-pulse" aria-hidden="true" />;
   }
 
-  // Not signed in — show the login link & quick demo switcher
+  // Not signed in — show the login link
   if (!user) {
     return (
       <div className="flex items-center space-x-1.5 shrink-0">
@@ -199,89 +176,6 @@ export const UserMenu: React.FC = () => {
             <p className="text-[11px] text-slate-500 font-mono truncate">
               {user.displayId}
             </p>
-          </div>
-
-          {/* Core Role-based Actions */}
-          <div className="p-2 space-y-1">
-            
-            {/* 1. TEACHER/ADVISOR DASHBOARD (Prominently featured for Faculty Role) */}
-            {isFaculty && (
-              <Link
-                href="/advisor"
-                onClick={() => setIsOpen(false)}
-                className="flex items-center justify-between p-2.5 rounded-xl bg-amber-50/80 hover:bg-amber-100/90 border border-amber-200/80 text-amber-950 transition-colors group"
-              >
-                <div className="flex items-center space-x-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center font-bold shadow-2xs">
-                    <ShieldCheck className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold block">แดชบอร์ดอาจารย์</span>
-                    <span className="text-[10px] text-amber-800/80 block">ตรวจสอบ & อนุมัติโครงงาน</span>
-                  </div>
-                </div>
-
-                <span className="px-2 py-0.5 bg-amber-500 text-slate-950 text-[10px] font-bold rounded-md font-mono shrink-0">
-                  รออนุมัติ
-                </span>
-              </Link>
-            )}
-
-            {/* 2. My Projects */}
-            <Link
-              href="/edit"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center space-x-2.5 p-2.5 rounded-xl hover:bg-slate-100 text-slate-800 transition-colors"
-            >
-              <PencilLine className="w-4 h-4 text-slate-500" />
-              <div className="flex-1">
-                <span className="text-xs font-semibold block">โครงงานของฉัน</span>
-                <span className="text-[10px] text-slate-500 block">จัดการและแก้ไขข้อมูลโครงงาน</span>
-              </div>
-            </Link>
-
-            {/* 3. Submit Project */}
-            <Link
-              href="/submit"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center space-x-2.5 p-2.5 rounded-xl hover:bg-slate-100 text-slate-800 transition-colors"
-            >
-              <Plus className="w-4 h-4 text-amber-600" />
-              <div className="flex-1">
-                <span className="text-xs font-semibold block">ส่งโครงงานใหม่ (Submit)</span>
-                <span className="text-[10px] text-slate-500 block">กรอกพิมพ์เขียวเพื่อส่งให้อาจารย์ตรวจ</span>
-              </div>
-            </Link>
-
-          </div>
-
-          {/* Quick Role Preview Switcher */}
-          <div className="px-3 py-2 bg-slate-50 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500 font-medium">สลับโหมดบทบาท:</span>
-            <div className="flex items-center space-x-1">
-              <button
-                type="button"
-                onClick={() => toggleRoleMode('faculty')}
-                className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-all ${
-                  isFaculty 
-                    ? 'bg-slate-950 text-amber-400 font-bold' 
-                    : 'text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                อาจารย์
-              </button>
-              <button
-                type="button"
-                onClick={() => toggleRoleMode('student')}
-                className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-all ${
-                  !isFaculty 
-                    ? 'bg-slate-950 text-white font-bold' 
-                    : 'text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                นิสิต
-              </button>
-            </div>
           </div>
 
           {/* Sign Out Button */}
