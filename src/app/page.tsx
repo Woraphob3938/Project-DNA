@@ -632,6 +632,7 @@ export default function Home() {
                 projects={projects} 
                 faculties={faculties}
                 challenges={challenges}
+                onViewProject={(project) => setSelectedProject(project)}
               />
             </div>
           )}

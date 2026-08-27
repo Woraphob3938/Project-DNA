@@ -7,20 +7,26 @@ import {
   Layers, 
   Download,
   GraduationCap,
-  Target
+  Target,
+  TrendingUp,
+  Eye,
+  FileDown
 } from 'lucide-react';
-import { Project, Faculty, Challenge } from '@/types/dna';
+import { Project, Faculty, Challenge, ReusableAsset } from '@/types/dna';
 
 interface ProjectAnalyticsProps {
   projects: Project[];
   faculties: Faculty[];
   challenges: Challenge[];
+  /** Opens the detail drawer when an insight row is clicked */
+  onViewProject?: (project: Project) => void;
 }
 
 export const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({
   projects,
   faculties,
-  challenges
+  challenges,
+  onViewProject
 }) => {
   // Compute analytics
   const totalReusableAssets = projects.reduce((acc, p) => acc + (p.assets?.length || 0), 0);
@@ -31,6 +37,37 @@ export const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({
   const linkedChallenges = challenges.filter(
     c => c.status !== 'open' || (c.matched_project_ids?.length ?? 0) > 0
   ).length;
+
+  // --- Insight panels (master-prompt T9): derived purely from props ---
+  // Publications per academic year, ascending timeline order
+  const yearBuckets = Array.from(
+    projects.reduce((map, p) => {
+      if (p.academic_year != null) map.set(p.academic_year, (map.get(p.academic_year) || 0) + 1);
+      return map;
+    }, new Map<number, number>())
+  ).sort((a, b) => a[0] - b[0]);
+  const maxYearCount = Math.max(1, ...yearBuckets.map(([, n]) => n));
+
+  // Top 3 most-viewed projects
+  const topProjects = [...projects]
+    .sort((a, b) => (b.view_count || 0) - (a.view_count || 0))
+    .slice(0, 3);
+
+  // Top 3 downloaded reusable assets across the whole repository
+  const topAssets = projects
+    .flatMap(p => (p.assets || []).map(asset => ({ ...asset, projectTitle: p.title_th })))
+    .sort((a, b) => b.download_count - a.download_count)
+    .slice(0, 3);
+
+  const ASSET_TYPE_LABEL: Record<ReusableAsset['asset_type'], string> = {
+    code_repo: 'ซอร์สโค้ด',
+    dataset: 'ชุดข้อมูล',
+    cad_blueprint: 'แบบ CAD',
+    circuit_schematic: 'วงจรอิเล็กทรอนิกส์',
+    api: 'API',
+    trained_model: 'โมเดล AI',
+    document: 'เอกสาร'
+  };
 
   // Empty state: guide newcomers instead of showing a wall of zeros
   if (projects.length === 0) {
@@ -124,6 +161,107 @@ export const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({
             </div>
           </div>
         </div>
+
+      </div>
+
+      {/* Insight Panels (master-prompt T9) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+        {/* Panel A: Publication trend by academic year */}
+        <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-soft flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display text-sm font-bold text-slate-900 flex items-center space-x-2">
+              <TrendingUp className="w-4 h-4 text-sky-600" />
+              <span>แนวโน้มการเผยแพร่รายปี</span>
+            </h3>
+            <span className="text-xs font-mono text-slate-400">{yearBuckets.length} ปีการศึกษา</span>
+          </div>
+          {yearBuckets.length === 0 ? (
+            <p className="text-xs text-slate-400 my-auto">ยังไม่มีข้อมูลรายปีการศึกษา</p>
+          ) : (
+            <div className="mt-auto flex items-end justify-between gap-2 h-28 pt-2">
+              {yearBuckets.map(([year, count]) => (
+                <div key={year} className="flex-1 flex flex-col items-center justify-end h-full gap-1.5 min-w-0">
+                  <span className="text-[10px] font-mono font-bold text-slate-600 tabular-nums">{count}</span>
+                  <div
+                    style={{ height: `${Math.max((count / maxYearCount) * 100, 4)}%` }}
+                    className="w-full max-w-[42px] bg-gradient-to-t from-amber-500 to-amber-300 rounded-t-md transition-all duration-300"
+                  />
+                  <span className="text-[10px] font-medium text-slate-500 tabular-nums">{year}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Panel B: Most viewed projects */}
+        <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-soft">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-display text-sm font-bold text-slate-900 flex items-center space-x-2">
+              <Eye className="w-4 h-4 text-purple-700" />
+              <span>โครงงานได้รับความสนใจสูงสุด</span>
+            </h3>
+            <span className="text-xs font-mono text-slate-400">TOP 3</span>
+          </div>
+          <div>
+            {topProjects.map((p, index) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onViewProject?.(p)}
+                title={p.title_th}
+                className="w-full flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-b-0 text-left hover:bg-amber-50/60 transition-colors rounded-lg px-1 -mx-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+              >
+                <span className="w-6 h-6 shrink-0 rounded-md bg-slate-900 text-amber-400 font-mono text-xs font-bold flex items-center justify-center">
+                  {index + 1}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-bold text-slate-800 truncate">{p.title_th}</span>
+                  <span className="block text-[10px] text-slate-400 truncate">
+                    {p.department?.name_th || 'ไม่ระบุภาควิชา'} · ปี {p.academic_year}
+                  </span>
+                </span>
+                <span className="shrink-0 flex items-center gap-2 text-[10px] font-mono text-slate-500 tabular-nums">
+                  <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{(p.view_count || 0).toLocaleString()}</span>
+                  <span className="flex items-center gap-1" title="จำนวนครั้งที่ถูกต่อยอด"><GitFork className="w-3 h-3" />{p.fork_count || 0}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* Panel C: Most downloaded reusable assets */}
+        <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-soft">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-display text-sm font-bold text-slate-900 flex items-center space-x-2">
+              <FileDown className="w-4 h-4 text-emerald-700" />
+              <span>ทรัพยากรยอดนิยม</span>
+            </h3>
+            <span className="text-xs font-mono text-slate-400">TOP 3</span>
+          </div>
+          {topAssets.length === 0 ? (
+            <p className="text-xs text-slate-400 mt-4">ยังไม่มีทรัพยากรที่ถูกดาวน์โหลด</p>
+          ) : (
+            <div>
+              {topAssets.map((asset) => (
+                <div key={asset.id} className="py-2.5 border-b border-slate-50 last:border-b-0 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-slate-800 truncate" title={asset.title}>{asset.title}</span>
+                    <span className="shrink-0 flex items-center gap-1 text-[10px] font-mono text-slate-500 tabular-nums">
+                      <FileDown className="w-3 h-3" />{asset.download_count.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="shrink-0 px-1.5 py-px bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-[10px] font-semibold">
+                      {ASSET_TYPE_LABEL[asset.asset_type]}
+                    </span>
+                    <span className="text-[10px] text-slate-400 truncate">{asset.projectTitle}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
 
       </div>
 
