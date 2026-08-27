@@ -43,5 +43,9 @@ next-env.d.ts
 *.seal
 mcp.local.json
 
+# Generated knowledge graph (rebuild with: graphify update .)
+/graphify-out/
+
+
 .vercel
 .env*
