@@ -99,7 +99,19 @@ export default function Home() {
           dnaService.getChallenges()
         ]);
 
-        setProjects(projsData);
+        // Merge lineage edges into each project object. The Supabase select
+        // does not embed parent_lineages/child_lineages, so without this step
+        // every consumer reading those fields directly off a project (analytics
+        // reuse rate, the "มีสายต่อยอด" filter, DnaCard badges, detail drawer,
+        // AI-match context) sees 0 relations even when rows exist in
+        // project_lineages. Normalises the seeded payload path too.
+        const enrichedProjects = projsData.map((project) => ({
+          ...project,
+          parent_lineages: lineagesData.filter(e => e.child_project_id === project.id),
+          child_lineages: lineagesData.filter(e => e.parent_project_id === project.id),
+        }));
+
+        setProjects(enrichedProjects);
         setFaculties(facsData);
         setDepartments(deptsData);
         setLineages(lineagesData);
