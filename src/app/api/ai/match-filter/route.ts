@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuthenticatedUser } from '@/lib/apiAuth';
 import type { UserMatchProfile } from '@/types/dna';
 import { userMatchProfileSchema } from '@/lib/schemas';
 import { rankProjectsWithAi } from '@/lib/geminiService';
@@ -6,6 +7,9 @@ import { dnaService } from '@/lib/dnaService';
 
 export async function POST(req: NextRequest) {
   try {
+    const authError = await requireAuthenticatedUser();
+    if (authError) return authError;
+
     const body = await req.json().catch(() => null);
     const parsed = userMatchProfileSchema.safeParse(
       body && typeof body === 'object' ? body.profile ?? {} : {}

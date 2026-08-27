@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuthenticatedUser } from '@/lib/apiAuth';
 import { dnaExtractRequestSchema } from '@/lib/schemas';
 import { extractDnaWithGemini } from '@/lib/geminiService';
 
 export async function POST(req: NextRequest) {
   try {
+    const authError = await requireAuthenticatedUser();
+    if (authError) return authError;
+
     const parsed = dnaExtractRequestSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) {
       return NextResponse.json({ error: 'Text is required (1–20,000 characters)' }, { status: 400 });

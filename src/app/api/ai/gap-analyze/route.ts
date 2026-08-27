@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuthenticatedUser } from '@/lib/apiAuth';
 import { gapAnalyzeRequestSchema } from '@/lib/schemas';
 import { generateGapAnalysis } from '@/lib/geminiService';
 
 export async function POST(req: NextRequest) {
   try {
+    const authError = await requireAuthenticatedUser();
+    if (authError) return authError;
+
     const parsed = gapAnalyzeRequestSchema.safeParse(await req.json().catch(() => null));
     const title = parsed.success ? parsed.data.title || parsed.data.projectTitle : undefined;
 
