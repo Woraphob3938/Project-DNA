@@ -72,6 +72,13 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
   const hasDataset = project.assets?.some(a => a.asset_type === 'dataset');
   const hasHardware = project.assets?.some(a => a.asset_type === 'cad_blueprint' || a.asset_type === 'circuit_schematic') || Boolean(project.dna_card?.hardware_specs);
   const hasModel = project.assets?.some(a => a.asset_type === 'trained_model');
+  // Lineage (สายวิวัฒนาการ): parents this project was forked from plus
+  // children created through Inception Studio. Drives the hero status chip,
+  // the info-card row, and whether the evolution-tree action is offered.
+  const lineageCount =
+    (project.parent_lineages?.length || 0) +
+    (project.child_lineages?.length || 0);
+  const hasLineage = lineageCount > 0;
 
   // Bookmark & downloads require login
   const { requireLogin } = useAuthGate();
@@ -173,6 +180,17 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
                 <span className="hidden sm:inline px-2 py-1 text-xs font-medium text-slate-200 bg-black/40 backdrop-blur-sm border border-white/10 rounded-md">
                   {project.department?.faculty?.name_th}
                 </span>
+                {hasLineage ? (
+                  <span className="inline-flex items-center space-x-1 px-2 py-1 text-xs font-bold text-amber-300 bg-amber-500/15 backdrop-blur-sm border border-amber-400/40 rounded-md">
+                    <GitFork className="w-3 h-3" />
+                    <span>มีสายวิวัฒนาการ • {lineageCount} โครงงาน</span>
+                  </span>
+                ) : (
+                  <span className="hidden sm:inline-flex items-center px-2 py-1 text-xs font-medium text-slate-400 bg-black/30 backdrop-blur-sm border border-white/10 rounded-md">
+                    <GitFork className="w-3 h-3 mr-1 opacity-50" />
+                    ยังไม่มีสายวิวัฒนาการ
+                  </span>
+                )}
               </div>
               <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-tight">
                 {project.title_th}
@@ -292,50 +310,11 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
           )}
         </section>
 
-        {/* Reusable Assets */}
-        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-amber-700">
-            ทรัพยากรที่นำมาใช้ซ้ำได้ (Reusable Assets)
-          </h2>
-          <div className="mt-3 grid grid-cols-1 gap-2.5">
-            {project.assets && project.assets.length > 0 ? (
-              project.assets.map((asset) => (
-                <div
-                  key={asset.id}
-                  className="flex items-center justify-between gap-3 p-3.5 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 transition-colors"
-                >
-                  <div className="flex items-center space-x-3 min-w-0">
-                    {asset.asset_type === 'code_repo' && <FileCode className="w-5 h-5 text-amber-600 shrink-0" />}
-                    {asset.asset_type === 'dataset' && <Database className="w-5 h-5 text-emerald-600 shrink-0" />}
-                    {asset.asset_type === 'circuit_schematic' && <Cpu className="w-5 h-5 text-blue-600 shrink-0" />}
-                    {asset.asset_type === 'trained_model' && <Award className="w-5 h-5 text-purple-600 shrink-0" />}
-                    <div className="min-w-0">
-                      <div className="text-sm font-bold text-slate-900 truncate">{asset.title}</div>
-                      <div className="text-xs text-slate-400">{asset.file_size || 'Open Source'} • {asset.license || 'Academic'}</div>
-                    </div>
-                  </div>
-
-                  <a
-                    href={asset.resource_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => {
-                      if (!requireLogin('/')) e.preventDefault();
-                    }}
-                    className="p-2 bg-white hover:bg-amber-500 hover:text-slate-950 text-slate-600 rounded-lg border border-slate-200 transition-colors shrink-0"
-                    title="ดาวน์โหลด / เปิดลิงก์"
-                  >
-                    <Download className="w-4 h-4" />
-                  </a>
-                </div>
-              ))
-            ) : (
-              <div className="text-sm text-slate-400 italic p-4 bg-slate-50 rounded-xl text-center">
-                มีลิงก์ซอร์สโค้ดและรายงานฉบับสมบูรณ์
-              </div>
-            )}
-          </div>
-        </section>
+        {/* NOTE: Asset downloads are centralized behind the sticky
+            "โหลดทรัพยากร" button (QuickResourceModal). The former inline
+            "Reusable Assets" section here rendered the identical list and
+            was removed to avoid duplication — availability summary lives
+            in the sidebar card below. */}
 
         </div>
 
@@ -372,12 +351,28 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
                 <dt className="text-slate-500 shrink-0">ปีการศึกษา</dt>
                 <dd className="font-semibold text-slate-800 text-right">{project.academic_year}</dd>
               </div>
+              <div className="py-2.5 flex items-start justify-between gap-3">
+                <dt className="text-slate-500 shrink-0">สายวิวัฒนาการ</dt>
+                <dd className={`font-semibold text-right ${hasLineage ? 'text-emerald-600' : 'text-slate-400'}`}>
+                  {hasLineage ? `มี • ${lineageCount} โครงงาน` : 'ยังไม่มี'}
+                </dd>
+              </div>
             </dl>
           </div>
 
-          {/* Resource Availability Card */}
+          {/* Resource Availability Card — header button opens the handoff modal */}
           <div className="bg-slate-900 rounded-2xl shadow-sm p-5 space-y-3">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">ทรัพยากรที่มีให้ใช้</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">ทรัพยากรที่มีให้ใช้</h2>
+              <button
+                onClick={() => onOpenQuickModal(project)}
+                title="เปิดรายการทรัพยากรทั้งหมดเพื่อดาวน์โหลด"
+                className="text-[10px] font-bold px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-amber-400 flex items-center space-x-1 transition-colors shrink-0"
+              >
+                <Download className="w-3 h-3" />
+                <span>เปิดดู</span>
+              </button>
+            </div>
             <ResourceRow icon={<FileCode className="w-4 h-4 text-amber-400" />} label="ซอร์สโค้ด / GitHub" available={hasCode} />
             <ResourceRow icon={<Database className="w-4 h-4 text-emerald-400" />} label="ชุดข้อมูล Dataset" available={hasDataset} />
             <ResourceRow icon={<Cpu className="w-4 h-4 text-blue-400" />} label="แบบวงจร / ฮาร์ดแวร์" available={hasHardware} />
@@ -451,7 +446,10 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-2">
+        {/* Resources open the handoff modal. The evolution-tree button only
+            appears when the project actually participates in a lineage chain,
+            otherwise viewing an empty graph would confuse visitors. */}
+        <div className={`grid gap-2 ${hasLineage ? 'grid-cols-2' : 'grid-cols-1'}`}>
           <button
             onClick={() => onOpenQuickModal(project)}
             className="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 flex items-center justify-center space-x-1.5 transition-colors"
@@ -460,13 +458,15 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
             <span>โหลดทรัพยากร</span>
           </button>
 
-          <button
-            onClick={() => onViewLineage(project)}
-            className="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 flex items-center justify-center space-x-1.5 transition-colors"
-          >
-            <GitFork className="w-3.5 h-3.5 text-amber-400" />
-            <span>ดูสายวิวัฒนาการ</span>
-          </button>
+          {hasLineage && (
+            <button
+              onClick={() => onViewLineage(project)}
+              className="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 flex items-center justify-center space-x-1.5 transition-colors"
+            >
+              <GitFork className="w-3.5 h-3.5 text-amber-400" />
+              <span>ดูสายวิวัฒนาการ ({lineageCount})</span>
+            </button>
+          )}
         </div>
       </div>
 

@@ -104,10 +104,15 @@ export const DnaCard: React.FC<DnaCardProps> = ({
           <span className="truncate pr-2 font-medium drop-shadow-xs">
             {project.department?.name_th || project.department?.faculty?.name_th || 'มก.ฉกส.'}
           </span>
-          {hasLineage && (
+          {hasLineage ? (
             <span className="px-1.5 py-0.5 bg-amber-500 text-slate-950 font-bold rounded flex items-center space-x-0.5 shrink-0 shadow-xs">
               <GitFork className="w-2.5 h-2.5" />
-              <span>ต่อยอด</span>
+              <span>มีสายต่อยอด {(project.parent_lineages?.length || 0) + (project.child_lineages?.length || 0)}</span>
+            </span>
+          ) : (
+            <span className="px-1.5 py-0.5 bg-slate-950/70 text-slate-300/90 font-semibold rounded flex items-center space-x-0.5 shrink-0 backdrop-blur-2xs">
+              <GitFork className="w-2.5 h-2.5 opacity-60" />
+              <span>ยังไม่มีสายต่อยอด</span>
             </span>
           )}
         </div>

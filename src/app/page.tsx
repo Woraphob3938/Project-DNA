@@ -16,6 +16,7 @@ import { Header } from '@/components/layout/Header';
 import { Project, Faculty, Department, Challenge, ProjectLineageEdge, ActiveTab, UserMatchProfile, AiMatchResult } from '@/types/dna';
 import Link from 'next/link';
 import { dnaService } from '@/lib/dnaService';
+import { deleteProjectIfSuccessful } from '@/lib/projectActions';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { useAuthGate } from '@/hooks/useAuthGate';
 import { useFavorites } from '@/hooks/useFavorites';
@@ -259,7 +260,11 @@ export default function Home() {
     if (deletingProjectId) return;
     setDeletingProjectId(project.id);
     try {
-      await dnaService.deleteProject(project.id);
+      const deleted = await deleteProjectIfSuccessful(
+        project.id,
+        (id) => dnaService.deleteProject(id)
+      );
+      if (!deleted) return;
       removeMyProjectId(project.id);
       setProjects(prev => prev.filter(p => p.id !== project.id));
       setSelectedProject(null);

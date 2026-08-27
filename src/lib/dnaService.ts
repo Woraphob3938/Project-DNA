@@ -4,8 +4,9 @@ import { supabase, isSupabaseConfigured } from './supabaseClient';
 
 /** Where a read's data came from — lets the UI warn when falling back to seeds. */
 export type DataSource = 'unknown' | 'supabase' | 'seed';
+export type DeleteProjectResult = { deleted: boolean; warning: string | null };
 
-class DnaService {
+export class DnaService {
   private inMemoryProjects: Project[] = [...SEED_PROJECTS];
   private inMemoryFaculties: Faculty[] = [...SEED_FACULTIES];
   private inMemoryDepartments: Department[] = [...SEED_DEPARTMENTS];
@@ -14,6 +15,11 @@ class DnaService {
 
   private lastFetchSource: DataSource = 'unknown';
   private lastSyncWarning: string | null = null;
+
+  constructor(
+    private readonly client = supabase,
+    private readonly configured = isSupabaseConfigured
+  ) {}
 
   /** Where the most recent read came from ('seed' = DB unreachable). */
   getDataSource(): DataSource {
@@ -57,9 +63,9 @@ class DnaService {
 
   // Get all Faculties of KU Sakon Nakhon
   async getFaculties(): Promise<Faculty[]> {
-    if (isSupabaseConfigured && supabase) {
+    if (this.configured && this.client) {
       try {
-        const { data, error } = await supabase.from('faculties').select('*');
+        const { data, error } = await this.client.from('faculties').select('*');
         if (!error && data && data.length > 0) {
           this.lastFetchSource = 'supabase';
           return data as Faculty[];
@@ -74,9 +80,9 @@ class DnaService {
 
   // Get all Departments with Faculty attached
   async getDepartments(): Promise<Department[]> {
-    if (isSupabaseConfigured && supabase) {
+    if (this.configured && this.client) {
       try {
-        const { data, error } = await supabase.from('departments').select('*, faculty:faculties(*)');
+        const { data, error } = await this.client.from('departments').select('*, faculty:faculties(*)');
         if (!error && data && data.length > 0) {
           this.lastFetchSource = 'supabase';
           return data as Department[];
@@ -94,9 +100,9 @@ class DnaService {
 
   // Get all Projects with full enriched relations
   async getProjects(): Promise<Project[]> {
-    if (isSupabaseConfigured && supabase) {
+    if (this.configured && this.client) {
       try {
-        const { data: projData, error: projErr } = await supabase
+        const { data: projData, error: projErr } = await this.client
           .from('projects')
           .select(`
             *,
@@ -135,9 +141,9 @@ class DnaService {
 
   // Get Lineage Graph Edges
   async getLineages(): Promise<ProjectLineageEdge[]> {
-    if (isSupabaseConfigured && supabase) {
+    if (this.configured && this.client) {
       try {
-        const { data, error } = await supabase.from('project_lineages').select('*');
+        const { data, error } = await this.client.from('project_lineages').select('*');
         if (!error && data && data.length > 0) {
           this.lastFetchSource = 'supabase';
           return data as ProjectLineageEdge[];
@@ -152,9 +158,9 @@ class DnaService {
 
   // Get Challenges
   async getChallenges(): Promise<Challenge[]> {
-    if (isSupabaseConfigured && supabase) {
+    if (this.configured && this.client) {
       try {
-        const { data, error } = await supabase.from('challenges').select('*');
+        const { data, error } = await this.client.from('challenges').select('*');
         if (!error && data && data.length > 0) {
           this.lastFetchSource = 'supabase';
           return data as Challenge[];
@@ -239,14 +245,14 @@ class DnaService {
     }
 
     // If Supabase is connected, sync full relational records
-    if (isSupabaseConfigured && supabase) {
+    if (this.configured && this.client) {
       this.lastSyncWarning = null;
       try {
         // Stamp ownership with the signed-in user (RLS enforces this too)
-        const { data: userData } = await supabase.auth.getUser();
+        const { data: userData } = await this.client.auth.getUser();
         const ownerId = userData.user?.id;
 
-        await supabase.from('projects').insert({
+        const { error: projectError } = await this.client.from('projects').insert({
           id: project.id,
           title_th: project.title_th,
           title_en: project.title_en,
@@ -258,9 +264,10 @@ class DnaService {
           cover_image_url: project.cover_image_url,
           ...(ownerId ? { owner_id: ownerId } : {})
         });
+        if (projectError) throw projectError;
 
         if (project.dna_card) {
-          await supabase.from('dna_cards').insert({
+          const { error } = await this.client.from('dna_cards').insert({
             id: 'dna-' + project.id,
             project_id: project.id,
             problem_statement: project.dna_card.problem_statement || '',
@@ -275,6 +282,7 @@ class DnaService {
             advisor_name: project.dna_card.advisor_name || '',
             student_authors: project.dna_card.student_authors || []
           });
+          if (error) throw error;
         }
 
         if (project.assets && project.assets.length > 0) {
@@ -288,7 +296,8 @@ class DnaService {
             file_size: a.file_size || '',
             license: a.license || 'MIT / Open Academic'
           }));
-          await supabase.from('reusable_assets').insert(assetRows);
+          const { error } = await this.client.from('reusable_assets').insert(assetRows);
+          if (error) throw error;
         }
 
         if (project.gaps && project.gaps.length > 0) {
@@ -301,7 +310,8 @@ class DnaService {
             recommended_tech: g.recommended_tech || [],
             potential_impact: g.potential_impact
           }));
-          await supabase.from('extension_gaps').insert(gapRows);
+          const { error } = await this.client.from('extension_gaps').insert(gapRows);
+          if (error) throw error;
         }
       } catch (e) {
         this.lastSyncWarning = e instanceof Error ? e.message : String(e);
@@ -344,11 +354,11 @@ class DnaService {
     }
 
     // Sync to Supabase when configured
-    if (isSupabaseConfigured && supabase) {
+    if (this.configured && this.client) {
       try {
         // `.select()` makes PostgREST return the affected rows so a silent
         // RLS drop (0 rows matched = no permission) is detectable.
-        let query = supabase
+        const query = this.client
           .from('projects')
           .update({
             title_th: updated.title_th,
@@ -369,7 +379,7 @@ class DnaService {
         }
 
         if (updated.dna_card) {
-          await supabase.from('dna_cards').update({
+          await this.client.from('dna_cards').update({
             problem_statement: updated.dna_card.problem_statement || '',
             tech_stack: updated.dna_card.tech_stack || [],
             key_outcomes: updated.dna_card.key_outcomes || [],
@@ -416,9 +426,9 @@ class DnaService {
       }
     }
 
-    if (isSupabaseConfigured && supabase) {
+    if (this.configured && this.client) {
       try {
-        await supabase
+        await this.client
           .from('projects')
           .update({
             status: newProjectStatus
@@ -438,7 +448,7 @@ class DnaService {
    * owner, so a non-owner's delete silently affects 0 rows — detected via
    * the returned row count.
    */
-  async deleteProject(projectId: string): Promise<{ deleted: boolean; warning: string | null }> {
+  async deleteProject(projectId: string): Promise<DeleteProjectResult> {
     this.lastSyncWarning = null;
 
     // Remove from the browser-side cache immediately (client-only mutation)
@@ -446,22 +456,22 @@ class DnaService {
       this.inMemoryProjects = this.inMemoryProjects.filter(p => p.id !== projectId);
     }
 
-    if (!isSupabaseConfigured || !supabase) {
+    if (!this.configured || !this.client) {
       // Demo mode: in-memory removal is all we can do
       return { deleted: true, warning: null };
     }
 
     try {
       // Children first so orphan rows never linger if a later step fails
-      await supabase.from('extension_gaps').delete().eq('project_id', projectId);
-      await supabase.from('reusable_assets').delete().eq('project_id', projectId);
-      await supabase.from('dna_cards').delete().eq('project_id', projectId);
-      await supabase
+      await this.client.from('extension_gaps').delete().eq('project_id', projectId);
+      await this.client.from('reusable_assets').delete().eq('project_id', projectId);
+      await this.client.from('dna_cards').delete().eq('project_id', projectId);
+      await this.client
         .from('project_lineages')
         .delete()
         .or(`parent_project_id.eq.${projectId},child_project_id.eq.${projectId}`);
 
-      const { data, error } = await supabase
+      const { data, error } = await this.client
         .from('projects')
         .delete()
         .eq('id', projectId)
@@ -485,12 +495,12 @@ class DnaService {
   // unavailable or nobody is signed in — callers fall back to the local
   // ownership registry in that case.
   async getOwnedProjectIds(): Promise<string[]> {
-    if (!isSupabaseConfigured || !supabase) return [];
+    if (!this.configured || !this.client) return [];
 
-    const { data: userData, error: userErr } = await supabase.auth.getUser();
+    const { data: userData, error: userErr } = await this.client.auth.getUser();
     if (userErr || !userData.user) return [];
 
-    const { data, error } = await supabase
+    const { data, error } = await this.client
       .from('projects')
       .select('id')
       .eq('owner_id', userData.user.id);
