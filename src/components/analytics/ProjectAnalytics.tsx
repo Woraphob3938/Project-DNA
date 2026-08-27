@@ -7,7 +7,6 @@ import {
   Layers, 
   Download,
   GraduationCap,
-  Building,
   Target
 } from 'lucide-react';
 import { Project, Faculty, Challenge } from '@/types/dna';
@@ -27,25 +26,29 @@ export const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({
   const totalReusableAssets = projects.reduce((acc, p) => acc + (p.assets?.length || 0), 0);
   const totalDownloads = projects.reduce((acc, p) => acc + (p.assets?.reduce((a, as) => a + (as.download_count || 0), 0) || 0), 0);
   const totalLineages = projects.filter(p => (p.parent_lineages?.length || 0) > 0 || (p.child_lineages?.length || 0) > 0).length;
+  // Challenges actually engaged with (has matched projects or progressed past 'open'),
+  // not just the raw catalogue size.
+  const linkedChallenges = challenges.filter(
+    c => c.status !== 'open' || (c.matched_project_ids?.length ?? 0) > 0
+  ).length;
+
+  // Empty state: guide newcomers instead of showing a wall of zeros
+  if (projects.length === 0) {
+    return (
+      <div className="bg-white p-10 rounded-2xl border border-slate-200 shadow-soft flex flex-col items-center justify-center text-center space-y-3">
+        <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600">
+          <BarChart3 className="w-6 h-6" />
+        </div>
+        <h3 className="font-display text-lg font-bold text-slate-900">ยังไม่มีข้อมูลสำหรับแสดงสถิติ</h3>
+        <p className="text-xs md:text-sm text-slate-500 max-w-md leading-relaxed">
+          เมื่อคลังโครงงานเริ่มมีผลงาน ตัวเลขการใช้ทรัพยากรซ้ำ อัตราการต่อยอด และสัดส่วนรายคณะจะปรากฏที่นี่
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
-      
-      {/* Header */}
-      <div className="bg-slate-900 text-white p-6 md:p-8 rounded-2xl border border-slate-800 shadow-sm">
-        <div className="max-w-3xl space-y-2">
-          <div className="flex items-center space-x-2 text-amber-400 font-mono text-xs font-bold uppercase tracking-wider">
-            <BarChart3 className="w-4 h-4" />
-            <span>PROJECT & KNOWLEDGE REUSE ANALYTICS</span>
-          </div>
-          <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-white">
-            สถิติคลังโครงงานและองค์ความรู้ มก.ฉกส.
-          </h2>
-          <p className="text-xs md:text-sm text-slate-300 leading-relaxed font-sans">
-            ภาพรวมการสร้างนวัตกรรม การหมุนเวียนโค้ด ชุดข้อมูล และฮาร์ดแวร์เพื่อต่อยอด รวมถึงสัดส่วนผลงานจำแนกตามคณะ มหาวิทยาลัยเกษตรศาสตร์ สกลนคร
-          </p>
-        </div>
-      </div>
+    <div className="space-y-8">
 
       {/* Metric Cards Bento Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -63,7 +66,7 @@ export const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({
               {projects.length}
             </div>
             <div className="text-xs text-slate-500 mt-1 font-medium">
-              ครอบคลุม 4 คณะในวิทยาเขต
+              ครอบคลุม {faculties.length} คณะในวิทยาเขต
             </div>
           </div>
         </div>
@@ -81,7 +84,7 @@ export const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({
               {Math.round((totalLineages / (projects.length || 1)) * 100)}%
             </div>
             <div className="text-xs text-slate-500 mt-1 font-medium">
-              โครงงานเกิดสายวิวัฒนาการสืบทอด
+              {totalLineages}/{projects.length} โครงงานมีสายวิวัฒนาการสืบทอด
             </div>
           </div>
         </div>
@@ -89,7 +92,7 @@ export const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({
         {/* Metric 3: Resource Downloads */}
         <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-soft flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">ดาวน์โหลดทรัพยากรซ้ำ</span>
+            <span className="text-xs font-semibold text-slate-500">การใช้ทรัพยากรซ้ำ (Reuse)</span>
             <div className="p-1.5 bg-slate-100 rounded-lg text-emerald-700">
               <Download className="w-4 h-4" />
             </div>
@@ -99,7 +102,7 @@ export const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({
               {totalDownloads.toLocaleString()}
             </div>
             <div className="text-xs text-slate-500 mt-1 font-medium">
-              นำซอร์สโค้ดและชุดข้อมูลไปใช้ต่อ
+              ดาวน์โหลดจาก {totalReusableAssets.toLocaleString()} ทรัพยากรที่เปิดให้ใช้ซ้ำ
             </div>
           </div>
         </div>
@@ -107,17 +110,17 @@ export const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({
         {/* Metric 4: Real-world Challenges */}
         <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-soft flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">โจทย์จริงที่เชื่อมโยง</span>
+            <span className="text-xs font-semibold text-slate-500">โจทย์จริงที่จับคู่แล้ว</span>
             <div className="p-1.5 bg-slate-100 rounded-lg text-purple-700">
               <Target className="w-4 h-4" />
             </div>
           </div>
           <div>
             <div className="font-display text-3xl font-bold text-slate-900 tabular-nums">
-              {challenges.length}
+              {linkedChallenges}
             </div>
             <div className="text-xs text-slate-500 mt-1 font-medium">
-              จากชุมชน อุตสาหกรรม และ มก.ฉกส.
+              จากทั้งหมด {challenges.length} โจทย์ · ชุมชน อุตสาหกรรม และ มก.ฉกส.
             </div>
           </div>
         </div>
@@ -131,7 +134,7 @@ export const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({
             <GraduationCap className="w-5 h-5 text-amber-600" />
             <span>สัดส่วนโครงงานจำแนกตามคณะ (Faculty Distribution)</span>
           </h3>
-          <span className="text-xs font-mono text-slate-400">4 คณะวิชา</span>
+          <span className="text-xs font-mono text-slate-400">{faculties.length} คณะวิชา</span>
         </div>
 
         <div className="space-y-4">
@@ -154,9 +157,19 @@ export const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({
                   <span className="font-mono text-slate-600 tabular-nums">{count} โครงงาน ({percentage}%)</span>
                 </div>
 
-                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden"
+                  role="meter"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={percentage}
+                  aria-label={`${fac.name_th}: ${count} โครงงาน (${percentage}%)`}
+                >
                   <div
-                    style={{ width: `${Math.max(percentage, 5)}%`, backgroundColor: fac.color_hex }}
+                    style={{
+                      width: percentage > 0 ? `${Math.max(percentage, 3)}%` : '0%',
+                      backgroundColor: fac.color_hex
+                    }}
                     className="h-full rounded-full transition-all duration-300"
                   />
                 </div>
