@@ -252,6 +252,10 @@ export class DnaService {
         const { data: userData } = await this.client.auth.getUser();
         const ownerId = userData.user?.id;
 
+        // New submissions enter the review queue; ingestion of a finished
+        // project counts as approved from the start.
+        const isPendingReview = project.status === 'pending_approval';
+
         const { error: projectError } = await this.client.from('projects').insert({
           id: project.id,
           title_th: project.title_th,
@@ -262,6 +266,8 @@ export class DnaService {
           status: project.status,
           department_id: project.department_id,
           cover_image_url: project.cover_image_url,
+          approval_status: isPendingReview ? 'pending' : 'approved',
+          ...(isPendingReview ? { submitted_at: new Date().toISOString() } : {}),
           ...(ownerId ? { owner_id: ownerId } : {})
         });
         if (projectError) throw projectError;
@@ -409,33 +415,57 @@ export class DnaService {
     const existing = all.find(p => p.id === projectId);
     if (!existing) return null;
 
+    this.lastSyncWarning = null;
     const newProjectStatus: Project['status'] = approvalStatus === 'approved' ? 'completed' : 'needs_revision';
+    const reviewedAt = new Date().toISOString();
 
     const updated: Project = {
       ...existing,
       status: newProjectStatus,
       approval_status: approvalStatus,
       advisor_feedback: advisorFeedback,
-      reviewed_at: new Date().toISOString()
+      reviewed_at: reviewedAt
     };
 
+    if (this.configured && this.client) {
+      try {
+        // Stamp the reviewer so the database keeps an audit trail
+        const { data: userData } = await this.client.auth.getUser();
+        const reviewerId = userData.user?.id;
+
+        // `.select()` makes PostgREST return the affected rows so a silent
+        // RLS drop (0 rows = no permission) is detectable — without it the
+        // dashboard used to report "approved" while the row never changed.
+        const { data: updRows, error: updErr } = await this.client
+          .from('projects')
+          .update({
+            status: newProjectStatus,
+            approval_status: approvalStatus,
+            advisor_feedback: advisorFeedback ?? null,
+            reviewed_at: reviewedAt,
+            ...(reviewerId ? { reviewer_id: reviewerId } : {})
+          })
+          .eq('id', projectId)
+          .select();
+
+        if (updErr) throw updErr;
+
+        if (!updRows || updRows.length === 0) {
+          this.lastSyncWarning = 'ไม่มีสิทธิ์อนุมัติโครงงานนี้ในฐานข้อมูล — การอนุมัติไม่ได้ถูกบันทึก';
+          return updated;
+        }
+      } catch (e) {
+        this.lastSyncWarning = e instanceof Error ? e.message : String(e);
+        console.warn('Supabase approval update failed:', e);
+        return updated;
+      }
+    }
+
+    // Only mirror into the client-side cache when the database accepted it
     if (typeof window !== 'undefined') {
       const i = this.inMemoryProjects.findIndex(p => p.id === projectId);
       if (i >= 0) {
         this.inMemoryProjects[i] = updated;
-      }
-    }
-
-    if (this.configured && this.client) {
-      try {
-        await this.client
-          .from('projects')
-          .update({
-            status: newProjectStatus
-          })
-          .eq('id', projectId);
-      } catch (e) {
-        console.warn('Supabase approval status update error:', e);
       }
     }
 

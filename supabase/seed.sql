@@ -67,7 +67,7 @@ INSERT INTO projects (id, title_th, title_en, abstract_th, abstract_en, academic
  'Smart Solar-Powered Water Pumping with LoRaWAN Telemetry for Nam Kam Basin',
  'ออกแบบระบบโซลาร์ปั๊มน้ำระยะไกลด้วยสัญญาณ LoRaWAN ครอบคลุมรัศมี 10 กิโลเมตร เพื่อสูบน้ำเข้านาข้าวและสวนผลไม้ในช่วงหน้าแล้งแบบอัตโนมัติผ่านพลังงานสะอาด',
  'A 10km LoRaWAN telemetry network controlling solar water pumps for remote farmland irrigation.',
- 2566, 'completed', 'dept-ee', 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=800&auto=format&fit=crop&q=60', 4.75, 1150, 15),
+ 2566, 'completed', 'dept-ee', 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop&q=60', 4.75, 1150, 15),
 
 ('proj-4',
  'แบบจำลองทำนายวิกฤตน้ำแล้งล่วงหน้าและจัดสรรโควตาน้ำลุ่มน้ำก่ำด้วย LSTM AI',

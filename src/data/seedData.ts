@@ -386,7 +386,7 @@ export const SEED_PROJECTS: Project[] = [
     academic_year: 2566,
     status: 'completed',
     department_id: 'dept-ee',
-    cover_image_url: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=800&auto=format&fit=crop&q=60',
+    cover_image_url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop&q=60',
     rating_score: 4.75,
     view_count: 1150,
     fork_count: 15,

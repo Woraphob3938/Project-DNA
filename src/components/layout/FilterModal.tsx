@@ -63,7 +63,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[10vh]"
+      className="fixed inset-0 z-50 flex items-end sm:items-start justify-center p-0 sm:px-4 sm:pt-[10vh]"
       role="dialog"
       aria-modal="true"
       aria-label="ตัวกรองโครงงาน"
@@ -77,10 +77,13 @@ export const FilterModal: React.FC<FilterModalProps> = ({
       />
 
       {/* Panel */}
-      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="relative w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200 max-h-[85vh] flex flex-col">
+
+        {/* Mobile Drag Indicator Handle */}
+        <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mt-2.5 mb-1 sm:hidden" />
 
         {/* Head */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-5 py-3.5 sm:py-4 border-b border-slate-100">
           <h2 className="font-display text-base font-bold text-slate-900 flex items-center space-x-2">
             <Filter className="w-4 h-4 text-amber-600" />
             <span>ตัวกรองทั้งหมด</span>
@@ -95,7 +98,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
         </div>
 
         {/* Body — every filter lives here */}
-        <div className="px-5 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+        <div className="px-5 py-4 space-y-4 max-h-[60vh] sm:max-h-[50vh] overflow-y-auto flex-1">
 
           {/* Faculty */}
           <div>
@@ -185,7 +188,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
         </div>
 
         {/* Foot */}
-        <div className="flex items-center justify-between px-5 py-3.5 bg-slate-50 border-t border-slate-100">
+        <div className="flex items-center justify-between px-5 py-3.5 bg-slate-50 border-t border-slate-100 pb-[max(env(safe-area-inset-bottom),0.875rem)]">
           <button
             onClick={onResetAll}
             disabled={!hasActiveFilters}
@@ -196,7 +199,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
           </button>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 text-xs font-bold rounded-xl shadow-xs transition-colors"
+            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 text-xs font-bold rounded-xl shadow-xs transition-colors"
           >
             เสร็จสิ้น
           </button>

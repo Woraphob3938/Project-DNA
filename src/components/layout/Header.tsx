@@ -114,20 +114,20 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="bg-white border-b border-slate-200/90 sticky top-0 z-20 transition-all font-sans">
       
       {/* 1. Main Top Brand & Action Bar */}
-      <div className="px-6 py-3.5 max-w-7xl mx-auto flex items-center justify-between gap-4">
+      <div className="px-4 sm:px-6 py-3 max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
         
         {/* Title & Campus Branding */}
-        <div>
-          <h1 className="font-display text-lg md:text-xl font-bold text-slate-900 tracking-tight flex items-center space-x-2">
-            <span>DNA : คลังองค์ความรู้ & ต่อยอดโครงงานนิสิต</span>
+        <div className="min-w-0">
+          <h1 className="font-display text-sm sm:text-base md:text-xl font-bold text-slate-900 tracking-tight flex items-center space-x-1.5 truncate">
+            <span>DNA : คลังต่อยอดโครงงาน</span>
           </h1>
-          <p className="text-[11px] text-slate-500 font-sans">
+          <p className="text-[10px] sm:text-[11px] text-slate-500 font-sans truncate max-w-[200px] sm:max-w-none">
             มหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตเฉลิมพระเกียรติ จังหวัดสกลนคร (KU CSC)
           </p>
         </div>
 
         {/* Global Navigation Actions */}
-        <div className="flex items-center space-x-2 shrink-0">
+        <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
           
           {/* My Projects — requires login */}
           <Link
@@ -135,10 +135,10 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={(e) => {
               if (!requireLogin('/edit')) e.preventDefault();
             }}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl border border-slate-200 transition-all shrink-0"
+            className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl border border-slate-200 transition-all shrink-0"
             title="จัดการโครงงานที่คุณเพิ่มไว้"
           >
-            <PencilLine className="w-4 h-4 text-slate-500" />
+            <PencilLine className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500" />
             <span className="hidden sm:inline">โครงงานของฉัน</span>
           </Link>
 
@@ -148,9 +148,9 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={(e) => {
               if (!requireLogin('/submit')) e.preventDefault();
             }}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition-all shrink-0"
+            className="flex items-center space-x-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition-all shrink-0"
           >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
             <span className="hidden sm:inline">เพิ่มโปรเจกต์</span>
           </Link>
 
@@ -161,8 +161,8 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* 2. Compact Unified Search & Filter Command Bar (Only on Explore/Favorites) */}
       {showSearchAndFilters && (
-        <div className="px-6 py-2.5 bg-slate-50/80 border-t border-slate-200/70">
-          <div className="max-w-7xl mx-auto flex flex-wrap md:grid md:grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <div className="px-4 sm:px-6 py-2 sm:py-2.5 bg-slate-50/80 border-t border-slate-200/70">
+          <div className="max-w-7xl mx-auto flex flex-wrap md:grid md:grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
 
             {/* Left spacer — balances the group so search + filter stay centred together */}
             <div className="hidden md:block" aria-hidden="true" />
@@ -172,7 +172,7 @@ export const Header: React.FC<HeaderProps> = ({
 
               {/* Search field with hint marquee */}
               <div className="relative flex-1 md:flex-none">
-              <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
@@ -181,13 +181,14 @@ export const Header: React.FC<HeaderProps> = ({
                 onFocus={() => setIsSearchHintVisible(false)}
                 onBlur={() => setIsSearchHintVisible(true)}
                 aria-label="ค้นหาโครงงาน"
-                className="w-full md:w-[38rem] max-w-full pl-12 pr-28 py-3 text-sm font-medium bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-400 text-slate-900 transition-all"
+                placeholder="ค้นหาโครงงาน หรือโจทย์ที่อยากทำ..."
+                className="w-full md:w-[38rem] max-w-full pl-9 sm:pl-12 pr-16 sm:pr-28 py-2.5 sm:py-3 text-xs sm:text-sm font-medium bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-400 text-slate-900 transition-all placeholder:text-slate-400 placeholder:text-xs sm:placeholder:text-sm sm:placeholder:text-transparent focus:sm:placeholder:text-slate-400"
               />
 
-              {/* Animated hint ticker — drifts slowly left→right, visible only while idle */}
+              {/* Animated hint ticker — visible on screens sm and up only to prevent mobile clutter */}
               {!searchQuery && isSearchHintVisible && (
-                <div className="absolute inset-y-0 left-12 right-28 overflow-hidden flex items-center pointer-events-none" aria-hidden="true">
-                  <div className="dna-marquee-track text-sm text-slate-500 font-medium font-sans">
+                <div className="hidden sm:flex absolute inset-y-0 left-10 sm:left-12 right-16 sm:right-28 overflow-hidden items-center pointer-events-none select-none" aria-hidden="true">
+                  <div className="dna-marquee-track text-xs sm:text-sm text-slate-400 font-medium font-sans">
                     <span>ค้นหาชื่อโครงงาน หรือพิมพ์โจทย์ที่อยากทำ…</span>
                     <span>เช่น อยากทำเครื่องสูบน้ำพลังงานแสงอาทิตย์</span>
                     <span>เช่น ระบบจัดการขยะด้วย AI + LoRaWAN</span>
@@ -221,44 +222,44 @@ export const Header: React.FC<HeaderProps> = ({
                     ) : (
                       <Sparkles className="w-3 h-3 fill-current" />
                     )}
-                    <span>AI กรอง</span>
+                    <span><span className="hidden sm:inline">AI </span>กรอง</span>
                   </button>
                 )}
               </div>
               </div>
 
               {/* Unified Filter Trigger — sits right next to the search bar */}
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
 
                 {/* Quick-reset (only when filters are active) */}
                 {hasActiveFilters && (
                   <button
                     onClick={handleResetAllFilters}
-                    className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-red-600 hover:border-red-200 shadow-sm transition-colors"
+                    className="p-2 sm:p-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-red-600 hover:border-red-200 shadow-sm transition-colors"
                     title="ล้างตัวกรองทั้งหมด"
                     aria-label="ล้างตัวกรองทั้งหมด"
                   >
-                    <RotateCcw className="w-4 h-4" />
+                    <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </button>
                 )}
 
                 <button
                   onClick={() => setIsFilterOpen(true)}
-                  className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl border text-xs font-bold shadow-sm transition-all ${
+                  className={`flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border text-xs font-bold shadow-sm transition-all ${
                     activeFilterCount > 0
                       ? 'bg-amber-50 border-amber-400 ring-1 ring-amber-400/40 text-amber-900'
                       : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                   }`}
                   aria-haspopup="dialog"
                 >
-                  <Filter className="w-4 h-4" />
-                  <span>ตัวกรอง</span>
+                  <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="text-xs">ตัวกรอง</span>
                   {activeFilterCount > 0 && (
-                    <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-extrabold leading-none">
+                    <span className="min-w-[16px] sm:min-w-[18px] h-4 sm:h-[18px] px-1 flex items-center justify-center rounded-full bg-amber-500 text-white text-[9px] sm:text-[10px] font-extrabold leading-none">
                       {activeFilterCount}
                     </span>
                   )}
-                  <ChevronDown className="w-3.5 h-3.5 opacity-50" />
+                  <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 opacity-50" />
                 </button>
               </div>
             </div>

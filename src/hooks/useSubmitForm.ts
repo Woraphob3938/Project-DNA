@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { dnaService } from '@/lib/dnaService';
+import { useAuthGate } from '@/hooks/useAuthGate';
 import { addMyProjectId } from '@/hooks/useMyProjects';
 import {
   uploadProjectFile,
@@ -35,6 +36,17 @@ export interface UploadedFileEntry {
  */
 export function useSubmitForm() {
   const router = useRouter();
+  const { isAuthenticated, requireLogin } = useAuthGate();
+
+  // /submit is a gated action — anonymous visitors are bounced to /login and
+  // returned here after signing in. This mirrors the database's
+  // authenticated-only insert policy so guest spam can never reach the
+  // public library again (the old open policy produced "asdas"-style junk).
+  useEffect(() => {
+    if (isAuthenticated === false) {
+      requireLogin('/submit');
+    }
+  }, [isAuthenticated, requireLogin]);
 
   // Reference data from Service
   const faculties = dnaService.getInitialFaculties();
@@ -232,6 +244,10 @@ export function useSubmitForm() {
   const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Hard stop for signed-out visitors (defense in depth for the redirect
+    // effect above) — the database also rejects anon inserts.
+    if (!requireLogin('/submit')) return;
+
     if (!titleTh.trim()) {
       setErrorMessage('กรุณากรอกชื่อโครงงานภาษาไทย');
       setCurrentStep(1);
@@ -328,14 +344,14 @@ export function useSubmitForm() {
         });
       }
 
-      // Create new Project DNA
+      // Create new Project DNA — new submissions wait for advisor approval
       const newProject: Partial<Project> = {
         title_th: titleTh,
         title_en: titleEn || titleTh,
         abstract_th: abstractTh || problemStatement,
         abstract_en: titleEn,
         academic_year: academicYear,
-        status: 'completed',
+        status: 'pending_approval',
         department_id: chosenDeptId,
         cover_image_url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop&q=60',
         dna_card: {

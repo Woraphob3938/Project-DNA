@@ -421,25 +421,25 @@ export const LineageVisualizer: React.FC<LineageVisualizerProps> = ({
         </div>
 
         {/* View Mode Switcher */}
-        <div className="flex p-1 bg-slate-800/90 rounded-xl border border-slate-700/80 text-xs font-semibold shrink-0 self-start md:self-auto" role="tablist" aria-label="โหมดการแสดงผล">
+        <div className="flex flex-wrap sm:flex-nowrap w-full md:w-auto p-1 bg-slate-800/90 rounded-xl border border-slate-700/80 text-xs font-semibold shrink-0 gap-1" role="tablist" aria-label="โหมดการแสดงผล">
           {([
-            ['pipeline', GitFork, 'ลำดับขั้น (Pipeline)'],
-            ['tree', Split, 'ผังโครงข่าย (Tree)'],
-            ['diff', Table, 'เปรียบเทียบ (Diff)']
-          ] as const).map(([mode, Icon, label]) => (
+            ['pipeline', GitFork, 'ลำดับขั้น', ' (Pipeline)'],
+            ['tree', Split, 'ผังโครงข่าย', ' (Tree)'],
+            ['diff', Table, 'เปรียบเทียบ', ' (Diff)']
+          ] as const).map(([mode, Icon, shortLabel, fullLabel]) => (
             <button
               key={mode}
               role="tab"
               aria-selected={viewMode === mode}
               onClick={() => setViewMode(mode)}
-              className={`px-3 py-2 rounded-lg flex items-center space-x-1.5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400 ${
+              className={`flex-1 sm:flex-none justify-center px-3 py-2 rounded-lg flex items-center space-x-1.5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400 ${
                 viewMode === mode
                   ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
                   : 'text-slate-300 hover:text-white'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
-              <span>{label}</span>
+              <span>{shortLabel}<span className="hidden sm:inline">{fullLabel}</span></span>
             </button>
           ))}
         </div>
@@ -578,14 +578,19 @@ export const LineageVisualizer: React.FC<LineageVisualizerProps> = ({
 
       {/* ═══ VIEW 2 · TREE with bézier genealogy ═══ */}
       {viewMode === 'tree' && families.length > 0 && (
-        <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-soft space-y-6">
-          <div>
-            <h3 className="font-display text-lg font-bold text-slate-900">
-              ผังโครงข่ายสายสัมพันธ์ข้ามรุ่น (Evolution Tree)
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              เส้น DNA เชื่อมจากรุ่นแม่สู่รุ่นต่อยอด · คลิกโหนดเพื่อเปิด DNA Card
-            </p>
+        <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl border border-slate-200 shadow-soft space-y-4 sm:space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="font-display text-base sm:text-lg font-bold text-slate-900">
+                ผังโครงข่ายสายสัมพันธ์ข้ามรุ่น (Evolution Tree)
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                เส้น DNA เชื่อมจากรุ่นแม่สู่รุ่นต่อยอด · คลิกโหนดเพื่อเปิด DNA Card
+              </p>
+            </div>
+            <div className="sm:hidden text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1 font-medium flex items-center space-x-1 self-start">
+              <span>👉 เลื่อนซ้าย-ขวาเพื่อดูผังโครงข่าย</span>
+            </div>
           </div>
 
           {families.map(family => {

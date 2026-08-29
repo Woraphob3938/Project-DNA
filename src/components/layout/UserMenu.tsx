@@ -178,6 +178,20 @@ export const UserMenu: React.FC = () => {
             </p>
           </div>
 
+          {/* Faculty Dashboard Link */}
+          {isFaculty && (
+            <div className="p-2 border-b border-slate-200/80">
+              <Link
+                href="/advisor"
+                onClick={() => setIsOpen(false)}
+                className="w-full flex items-center space-x-2 p-2 rounded-xl text-amber-800 hover:bg-amber-50 text-xs font-semibold transition-colors"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>แดชบอร์ดอาจารย์ที่ปรึกษา</span>
+              </Link>
+            </div>
+          )}
+
           {/* Sign Out Button */}
           <div className="p-2 border-t border-slate-200/80">
             <button

@@ -84,54 +84,54 @@ export const InceptionStudioModal: React.FC<InceptionStudioModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[92vh] overflow-hidden shadow-2xl border border-amber-300/60 flex flex-col justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl sm:rounded-3xl max-w-3xl w-full max-h-[92vh] overflow-hidden shadow-2xl border border-amber-300/60 flex flex-col justify-between">
         
         {/* Header */}
-        <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-amber-500/10 via-amber-50 to-white flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-md">
-              <Rocket className="w-5 h-5" />
+        <div className="p-4 sm:p-6 border-b border-slate-100 bg-gradient-to-r from-amber-500/10 via-amber-50 to-white flex items-center justify-between">
+          <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-md shrink-0">
+              <Rocket className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center space-x-2">
-                <span className="text-xs font-black uppercase px-2 py-0.5 bg-amber-500 text-slate-950 rounded-md">
-                  DNA INCEPTION STUDIO
+                <span className="text-[10px] sm:text-xs font-black uppercase px-2 py-0.5 bg-amber-500 text-slate-950 rounded-md shrink-0">
+                  INCEPTION STUDIO
                 </span>
-                <span className="text-xs text-slate-500">ขั้นตอนที่ {step} จาก 4</span>
+                <span className="text-[11px] sm:text-xs text-slate-500 truncate">ขั้นที่ {step}/4</span>
               </div>
-              <h3 className="text-lg font-black text-slate-900 mt-1">
-                สร้างโครงการต่อยอดจากรุ่นพี่ (Project Continuation Wizard)
+              <h3 className="text-sm sm:text-lg font-black text-slate-900 mt-0.5 truncate">
+                สร้างโครงการต่อยอดจากรุ่นพี่
               </h3>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors"
+            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors shrink-0 ml-2"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Wizard Step Progress Bar */}
-        <div className="grid grid-cols-4 border-b border-slate-100 text-xs font-bold text-slate-500 text-center">
-          <div className={`py-2.5 border-b-2 transition-all ${step >= 1 ? 'border-amber-500 text-slate-900 bg-amber-50/50' : 'border-transparent'}`}>
-            1. ตรวจสอบ Baseline
+        <div className="grid grid-cols-4 border-b border-slate-100 text-[10px] sm:text-xs font-bold text-slate-500 text-center">
+          <div className={`py-2 sm:py-2.5 border-b-2 transition-all ${step >= 1 ? 'border-amber-500 text-slate-900 bg-amber-50/50' : 'border-transparent'}`}>
+            1. <span className="hidden sm:inline">ตรวจ </span>Baseline
           </div>
-          <div className={`py-2.5 border-b-2 transition-all ${step >= 2 ? 'border-amber-500 text-slate-900 bg-amber-50/50' : 'border-transparent'}`}>
-            2. เลือกช่องว่าง AI Gap
+          <div className={`py-2 sm:py-2.5 border-b-2 transition-all ${step >= 2 ? 'border-amber-500 text-slate-900 bg-amber-50/50' : 'border-transparent'}`}>
+            2. <span className="hidden sm:inline">เลือก </span>AI Gap
           </div>
-          <div className={`py-2.5 border-b-2 transition-all ${step >= 3 ? 'border-amber-500 text-slate-900 bg-amber-50/50' : 'border-transparent'}`}>
-            3. จับคู่โจทย์จริง
+          <div className={`py-2 sm:py-2.5 border-b-2 transition-all ${step >= 3 ? 'border-amber-500 text-slate-900 bg-amber-50/50' : 'border-transparent'}`}>
+            3. โจทย์จริง
           </div>
-          <div className={`py-2.5 border-b-2 transition-all ${step >= 4 ? 'border-amber-500 text-slate-900 bg-amber-50/50' : 'border-transparent'}`}>
-            4. สร้าง DNA ฉบับใหม่
+          <div className={`py-2 sm:py-2.5 border-b-2 transition-all ${step >= 4 ? 'border-amber-500 text-slate-900 bg-amber-50/50' : 'border-transparent'}`}>
+            4. สร้าง DNA
           </div>
         </div>
 
         {/* Wizard Body */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-5 sm:space-y-6 flex-1">
           
           {/* STEP 1: Predecessor Baseline */}
           {step === 1 && (
@@ -304,11 +304,11 @@ export const InceptionStudioModal: React.FC<InceptionStudioModalProps> = ({
         </div>
 
         {/* Footer Controls */}
-        <div className="p-5 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+        <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50 flex items-center justify-between pb-[max(env(safe-area-inset-bottom),1rem)]">
           {step > 1 ? (
             <button
               onClick={() => setStep((step - 1) as any)}
-              className="px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 flex items-center space-x-1 transition-colors"
+              className="px-3.5 sm:px-4 py-2 sm:py-2.5 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 flex items-center space-x-1 transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
               <span>ย้อนกลับ</span>
@@ -318,7 +318,7 @@ export const InceptionStudioModal: React.FC<InceptionStudioModalProps> = ({
           {step < 4 ? (
             <button
               onClick={() => setStep((step + 1) as any)}
-              className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl flex items-center space-x-1.5 shadow-md transition-all active:scale-95"
+              className="px-5 sm:px-6 py-2 sm:py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl flex items-center space-x-1.5 shadow-md transition-all active:scale-95"
             >
               <span>ถัดไป</span>
               <ArrowRight className="w-4 h-4" />
@@ -326,10 +326,10 @@ export const InceptionStudioModal: React.FC<InceptionStudioModalProps> = ({
           ) : (
             <button
               onClick={handleFinish}
-              className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs rounded-xl flex items-center space-x-2 shadow-lg transition-all active:scale-95"
+              className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs rounded-xl flex items-center space-x-1.5 sm:space-x-2 shadow-lg transition-all active:scale-95 text-center"
             >
-              <Rocket className="w-4 h-4" />
-              <span>ยืนยันสร้าง DNA โครงการต่อยอด</span>
+              <Rocket className="w-4 h-4 shrink-0" />
+              <span className="truncate">ยืนยันสร้าง DNA โครงการต่อยอด</span>
             </button>
           )}
         </div>

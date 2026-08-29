@@ -78,7 +78,6 @@ export default function Home() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [inceptionProject, setInceptionProject] = useState<Project | null>(null);
   const [quickModalProject, setQuickModalProject] = useState<Project | null>(null);
-  
 
   // Load Initial Data
   useEffect(() => {
@@ -99,12 +98,7 @@ export default function Home() {
           dnaService.getChallenges()
         ]);
 
-        // Merge lineage edges into each project object. The Supabase select
-        // does not embed parent_lineages/child_lineages, so without this step
-        // every consumer reading those fields directly off a project (analytics
-        // reuse rate, the "มีสายต่อยอด" filter, DnaCard badges, detail drawer,
-        // AI-match context) sees 0 relations even when rows exist in
-        // project_lineages. Normalises the seeded payload path too.
+        // Merge lineage edges into each project object.
         const enrichedProjects = projsData.map((project) => ({
           ...project,
           parent_lineages: lineagesData.filter(e => e.child_project_id === project.id),
@@ -203,7 +197,7 @@ export default function Home() {
       if (!hasLineage) return false;
     }
 
-    // Search query filter (Only applies manual substring search when AI match is NOT active)
+    // Search query filter
     if (!aiMatchResults && searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchTitleTh = p.title_th?.toLowerCase().includes(q);
@@ -230,9 +224,6 @@ export default function Home() {
   });
 
   // ── Pagination: 12 projects per page ─────────────────────────────────
-  // The page resets to 1 automatically whenever filters change: we derive
-  // the effective page from a signature of the active filters instead of
-  // syncing it with an effect.
   const PROJECTS_PER_PAGE = 12;
   const filterSignature = [
     activeTab,
@@ -302,7 +293,7 @@ export default function Home() {
   return (
     <div className="flex min-h-screen bg-[#F4F5F7] text-slate-900 font-sans">
       
-      {/* 1. Left Yellow Sidebar */}
+      {/* 1. Yellow Sidebar (Desktop Left Sidebar, Mobile Bottom Nav) */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -342,7 +333,7 @@ export default function Home() {
 
         {/* Fallback-data notice — the DB is configured but unreachable */}
         {isFallbackData && (
-          <div className="px-6 md:px-8 pt-4">
+          <div className="px-4 sm:px-6 md:px-8 pt-4">
             <div className="max-w-7xl mx-auto flex items-center space-x-2.5 text-xs font-medium text-amber-900 bg-amber-50 border border-amber-300 rounded-xl px-4 py-2.5">
               <span aria-hidden="true">⚠️</span>
               <span>
@@ -354,7 +345,7 @@ export default function Home() {
         )}
 
         {/* Tab View Switching */}
-        <main className="flex-1 overflow-x-hidden p-6 md:p-8">
+        <main className="flex-1 overflow-x-hidden p-4 sm:p-6 md:p-8 pb-24 md:pb-8">
           
           {/* TAB 1: Explore / Catalog Grid & Detail Panel */}
           {(activeTab === 'explore' || activeTab === 'favorites') && (
@@ -492,7 +483,7 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Pagination — 12 projects/page, numbered buttons + jump input */}
+              {/* Pagination — 12 projects/page */}
               {totalProjectPages > 1 && (
                 <div className="space-y-2">
                   <p className="text-[11px] text-slate-500 font-medium">
@@ -510,7 +501,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* TAB 5: My Projects — owned catalog with inline delete */}
+          {/* TAB 5: My Projects */}
           {activeTab === 'my-projects' && (
             <div className="max-w-7xl mx-auto space-y-6">
               {loading ? (
@@ -544,7 +535,7 @@ export default function Home() {
                             aiMatchResult={aiMatchResults?.find(r => r.project_id === project.id)}
                           />
 
-                          {/* Inline delete — appears on hover, two-step confirm */}
+                          {/* Inline delete */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -673,6 +664,6 @@ export default function Home() {
         onClose={() => setQuickModalProject(null)}
       />
 
-      </div>
+    </div>
   );
 }

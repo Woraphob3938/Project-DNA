@@ -31,6 +31,7 @@ import {
 
 import { Project, Faculty, Department } from '@/types/dna';
 import { dnaService } from '@/lib/dnaService';
+import { createClient } from '@/utils/supabase/client';
 import { AdvisorReviewModal } from '@/components/advisor/AdvisorReviewModal';
 
 export default function AdvisorDashboardPage() {
@@ -47,17 +48,52 @@ export default function AdvisorDashboardPage() {
 
   // Selected Project for Review Modal
   const [reviewingProject, setReviewingProject] = useState<Project | null>(null);
-  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
 
-  // Current Teacher Profile
-  const currentAdvisor = {
-    name: 'ผศ.ดร. นคร พัฒนา',
-    title: 'ผู้ช่วยศาสตราจารย์',
-    departmentCode: 'CPE',
-    departmentName: 'สาขาวิชาวิศวกรรมคอมพิวเตอร์',
-    facultyName: 'คณะวิทยาศาสตร์และวิศวกรรมศาสตร์ (KUSE)',
-    campus: 'มหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตเฉลิมพระเกียรติ จ.สกลนคร'
-  };
+  // Auth gate: only signed-in faculty may open the control center
+  const [authState, setAuthState] = useState<'loading' | 'allowed' | 'signed_out' | 'forbidden'>('loading');
+  const [advisorProfile, setAdvisorProfile] = useState<{ fullName: string; email: string } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const supabase = createClient();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!active) return;
+      if (!authUser) {
+        setAuthState('signed_out');
+        return;
+      }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, student_id, role')
+        .eq('id', authUser.id)
+        .single();
+      if (!active) return;
+      const role = profile?.role ?? '';
+      if (role !== 'faculty' && role !== 'advisor' && role !== 'admin') {
+        setAuthState('forbidden');
+        return;
+      }
+      setAdvisorProfile({
+        fullName: profile?.full_name || authUser.user_metadata?.full_name || authUser.email || 'อาจารย์ที่ปรึกษา',
+        email: profile?.student_id || authUser.email || ''
+      });
+      setAuthState('allowed');
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Identity shown in the banner — from the signed-in profile, not hardcoded
+  const currentAdvisor = advisorProfile
+    ? {
+        name: advisorProfile.fullName,
+        email: advisorProfile.email,
+        campus: 'มหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตเฉลิมพระเกียรติ จ.สกลนคร'
+      }
+    : null;
 
   useEffect(() => {
     async function loadData() {
@@ -81,16 +117,69 @@ export default function AdvisorDashboardPage() {
     loadData();
   }, []);
 
-  const showToast = (text: string, type: 'success' | 'info' = 'success') => {
+  const showToast = (text: string, type: 'success' | 'info' | 'error' = 'success') => {
     setToastMessage({ text, type });
     setTimeout(() => setToastMessage(null), 3500);
   };
+
+  // Access gate — rendered instead of the dashboard for signed-out or
+  // non-faculty visitors (client-side; the database re-enforces server-side)
+  if (authState === 'loading') {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center font-sans">
+        <div className="flex items-center space-x-3 text-slate-500 text-sm font-medium">
+          <span className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+          <span>กำลังตรวจสอบสิทธิ์การเข้าถึง…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (authState === 'signed_out' || authState === 'forbidden') {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center font-sans px-6">
+        <div className="max-w-md w-full p-8 bg-white rounded-3xl border border-slate-200 shadow-sm text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
+            <ShieldCheck className="w-7 h-7" />
+          </div>
+          <h1 className="font-display text-lg font-bold text-slate-900">
+            {authState === 'signed_out' ? 'ศูนย์ควบคุมอาจารย์ที่ปรึกษา' : 'ไม่มีสิทธิ์เข้าถึง'}
+          </h1>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            {authState === 'signed_out'
+              ? 'หน้านี้สำหรับอาจารย์ที่ปรึกษาเท่านั้น กรุณาเข้าสู่ระบบด้วยบัญชีอาจารย์ (บัญชีสร้างโดยผู้ดูแลระบบ)'
+              : 'บัญชีของท่านไม่ใช่บัญชีอาจารย์ที่ปรึกษา จึงเข้าถึงศูนย์ควบคุมการอนุมัติไม่ได้'}
+          </p>
+          <div className="flex items-center justify-center pt-1">
+            {authState === 'signed_out' ? (
+              <Link
+                href="/login?next=/advisor"
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-amber-300 text-xs font-bold rounded-xl transition-colors"
+              >
+                เข้าสู่ระบบ
+              </Link>
+            ) : (
+              <Link
+                href="/"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-colors"
+              >
+                กลับสู่คลังโครงงาน
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Filter projects by Advisor scope & status
   const pendingProjects = projects.filter(p => {
     const isPending = p.status === 'pending_approval' || p.approval_status === 'pending';
     if (scope === 'my_advised') {
-      const isMyProject = p.dna_card?.advisor_name?.includes('นคร') || p.dna_card?.advisor_name?.includes('ที่ปรึกษา') || p.department_id === 'dept-cpe';
+      const advisorName = p.dna_card?.advisor_name || '';
+      const isMyProject = (currentAdvisor !== null && advisorName.includes(currentAdvisor.name))
+        || advisorName.includes('ที่ปรึกษา')
+        || p.department_id === 'dept-cpe';
       return isPending && isMyProject;
     }
     return isPending;
@@ -99,7 +188,9 @@ export default function AdvisorDashboardPage() {
   const approvedProjects = projects.filter(p => {
     const isApproved = p.status !== 'pending_approval' && p.approval_status !== 'pending';
     if (scope === 'my_advised') {
-      const isMyProject = p.dna_card?.advisor_name?.includes('นคร') || p.department_id === 'dept-cpe';
+      const advisorName = p.dna_card?.advisor_name || '';
+      const isMyProject = (currentAdvisor !== null && advisorName.includes(currentAdvisor.name))
+        || p.department_id === 'dept-cpe';
       return isApproved && isMyProject;
     }
     return isApproved;
@@ -112,7 +203,15 @@ export default function AdvisorDashboardPage() {
   // Approve Action Handler
   const handleApproveProject = async (projectId: string, advisorNote: string) => {
     await dnaService.updateProjectApprovalStatus(projectId, 'approved', advisorNote);
-    
+
+    // The database write can fail silently (RLS) — trust lastSyncWarning and
+    // never claim a success the database did not record.
+    const syncWarning = dnaService.getLastSyncWarning();
+    if (syncWarning) {
+      showToast(`⚠ การอนุมัติไม่สำเร็จ: ${syncWarning}`, 'error');
+      return;
+    }
+
     // Update local state
     setProjects(prev => prev.map(p => {
       if (p.id === projectId) {
@@ -140,7 +239,13 @@ export default function AdvisorDashboardPage() {
   // Request Revision Action Handler
   const handleRequestRevision = async (projectId: string, advisorNote: string) => {
     await dnaService.updateProjectApprovalStatus(projectId, 'needs_revision', advisorNote);
-    
+
+    const syncWarning = dnaService.getLastSyncWarning();
+    if (syncWarning) {
+      showToast(`⚠ บันทึกข้อเสนอแนะไม่สำเร็จ: ${syncWarning}`, 'error');
+      return;
+    }
+
     setProjects(prev => prev.map(p => {
       if (p.id === projectId) {
         return {
@@ -209,25 +314,25 @@ export default function AdvisorDashboardPage() {
       <section className="bg-white border-b border-slate-200/80 px-6 py-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
           
-          {/* Identity Block */}
+          {/* Identity Block — from the signed-in faculty profile */}
           <div className="flex items-start space-x-4">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-amber-400 flex items-center justify-center font-display text-xl font-bold shadow-md shrink-0 border border-slate-700">
-              นพ
+              {(currentAdvisor?.name || '?').charAt(0)}
             </div>
             <div className="space-y-1">
               <div className="flex items-center space-x-2">
                 <h2 className="font-display text-xl font-bold text-slate-900">
-                  {currentAdvisor.name}
+                  {currentAdvisor?.name || 'อาจารย์ที่ปรึกษา'}
                 </h2>
-                <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-[11px] font-mono font-medium rounded-md border border-slate-200">
-                  {currentAdvisor.departmentCode}
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-900 text-[11px] font-mono font-medium rounded-md border border-amber-200">
+                  อาจารย์
                 </span>
               </div>
-              <p className="text-xs text-slate-600 font-medium">
-                {currentAdvisor.departmentName} · {currentAdvisor.facultyName}
+              <p className="text-xs text-slate-600 font-medium font-mono">
+                {currentAdvisor?.email}
               </p>
               <p className="text-[11px] text-slate-400">
-                {currentAdvisor.campus}
+                {currentAdvisor?.campus}
               </p>
             </div>
           </div>
@@ -575,8 +680,16 @@ export default function AdvisorDashboardPage() {
 
       {/* 7. Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 px-4 py-3 bg-slate-950 text-white text-xs font-semibold rounded-2xl shadow-xl border border-slate-700 flex items-center space-x-2 animate-in slide-in-from-bottom-5">
-          <Sparkles className="w-4 h-4 text-amber-400 fill-current" />
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 text-white text-xs font-semibold rounded-2xl shadow-xl border flex items-center space-x-2 animate-in slide-in-from-bottom-5 ${
+          toastMessage.type === 'error'
+            ? 'bg-rose-950 border-rose-800'
+            : 'bg-slate-950 border-slate-700'
+        }`}>
+          {toastMessage.type === 'error' ? (
+            <AlertTriangle className="w-4 h-4 text-rose-400" />
+          ) : (
+            <Sparkles className="w-4 h-4 text-amber-400 fill-current" />
+          )}
           <span>{toastMessage.text}</span>
         </div>
       )}

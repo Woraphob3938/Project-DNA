@@ -44,33 +44,33 @@ export const QuickResourceModal: React.FC<QuickResourceModalProps> = ({
   const citationText = `${project.dna_card?.student_authors?.[0]?.name || 'คณะผู้จัดทำ'}. (${project.academic_year}). ${project.title_th} (${project.title_en}). โครงงานนิสิตปริญญาตรี คณะวิทยาศาสตร์และวิศวกรรมศาสตร์ มหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตเฉลิมพระเกียรติ จังหวัดสกลนคร.`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl border border-slate-200 flex flex-col justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl sm:rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl border border-slate-200 flex flex-col justify-between">
         
         {/* Header */}
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
-          <div>
-            <span className="text-xs font-black px-2.5 py-1 bg-amber-500 text-slate-950 rounded-lg">
+        <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+          <div className="min-w-0 pr-2">
+            <span className="text-[10px] sm:text-xs font-black px-2 sm:px-2.5 py-0.5 sm:py-1 bg-amber-500 text-slate-950 rounded-lg">
               QUICK RESOURCES & HANDOFF
             </span>
-            <h3 className="text-lg font-bold text-slate-900 mt-1.5 line-clamp-1">
+            <h3 className="text-sm sm:text-lg font-bold text-slate-900 mt-1 sm:mt-1.5 truncate">
               {project.title_th}
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 flex items-center justify-center transition-colors"
+            className="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 flex items-center justify-center transition-colors shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto space-y-6">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6">
           
           {/* 1. Downloadable Project Assets */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center space-x-1.5">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5 sm:mb-3 flex items-center space-x-1.5">
               <Download className="w-4 h-4 text-amber-500" />
               <span>ไฟล์ทรัพยากรที่เปิดให้ดาวน์โหลด (Reusable Assets)</span>
             </h4>
@@ -80,17 +80,17 @@ export const QuickResourceModal: React.FC<QuickResourceModalProps> = ({
                 project.assets.map((asset) => (
                   <div
                     key={asset.id}
-                    className="p-3.5 bg-slate-50 hover:bg-amber-50/50 rounded-2xl border border-slate-200 flex items-center justify-between transition-colors"
+                    className="p-3 sm:p-3.5 bg-slate-50 hover:bg-amber-50/50 rounded-2xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-colors"
                   >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-amber-600 shadow-2xs">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-amber-600 shadow-2xs shrink-0">
                         {asset.asset_type === 'code_repo' && <FileCode className="w-5 h-5" />}
                         {asset.asset_type === 'dataset' && <Database className="w-5 h-5 text-emerald-600" />}
                         {asset.asset_type === 'circuit_schematic' && <Cpu className="w-5 h-5 text-blue-600" />}
                         {asset.asset_type === 'trained_model' && <Award className="w-5 h-5 text-purple-600" />}
                       </div>
-                      <div>
-                        <div className="text-xs font-bold text-slate-900">{asset.title}</div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 truncate">{asset.title}</div>
                         <div className="text-[11px] text-slate-500 line-clamp-1">{asset.description}</div>
                         <div className="text-[10px] text-slate-400 mt-0.5">{asset.file_size} • สัญญาอนุญาต: {asset.license}</div>
                       </div>
@@ -103,7 +103,7 @@ export const QuickResourceModal: React.FC<QuickResourceModalProps> = ({
                       onClick={(e) => {
                         if (!requireLogin('/')) e.preventDefault();
                       }}
-                      className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded-xl flex items-center space-x-1 shadow-xs transition-colors shrink-0"
+                      className="w-full sm:w-auto justify-center px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded-xl flex items-center space-x-1 shadow-xs transition-colors shrink-0"
                     >
                       <Download className="w-3.5 h-3.5" />
                       <span>ดาวน์โหลด</span>
@@ -191,10 +191,10 @@ export const QuickResourceModal: React.FC<QuickResourceModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end pb-[max(env(safe-area-inset-bottom),1rem)]">
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors"
+            className="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors text-center"
           >
             ปิดหน้าต่าง
           </button>

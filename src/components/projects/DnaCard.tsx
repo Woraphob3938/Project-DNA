@@ -48,8 +48,8 @@ export const DnaCard: React.FC<DnaCardProps> = ({
           : 'border-slate-200/80 hover:border-slate-300 hover:shadow-card shadow-soft'
       }`}
     >
-      {/* 1. Compact Cover Image Banner (h-32) */}
-      <div className="relative h-32 w-full overflow-hidden bg-slate-100 shrink-0">
+      {/* 1. Compact Cover Image Banner (h-36 sm:h-32) */}
+      <div className="relative h-36 sm:h-32 w-full overflow-hidden bg-slate-100 shrink-0">
         {project.cover_image_url ? (
           <Image
             src={project.cover_image_url}
@@ -85,10 +85,10 @@ export const DnaCard: React.FC<DnaCardProps> = ({
           </div>
         )}
 
-        {/* Top-Right: Favorite Button */}
+        {/* Top-Right: Favorite Button — enlarged touch target */}
         <button
           onClick={(e) => onToggleFavorite(project.id, e)}
-          className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-lg flex items-center justify-center transition-all shadow-xs z-10 ${
+          className={`absolute top-2 right-2 w-8 h-8 rounded-lg flex items-center justify-center transition-all shadow-xs z-10 ${
             isFavorite
               ? 'bg-amber-500 text-slate-950'
               : 'bg-slate-900/75 hover:bg-slate-900 text-white hover:text-amber-300'
@@ -96,7 +96,7 @@ export const DnaCard: React.FC<DnaCardProps> = ({
           title={isFavorite ? 'นำออกจากรายการโปรด' : 'บันทึกเป็นรายการโปรด'}
           aria-label={isFavorite ? 'Remove favorite' : 'Add favorite'}
         >
-          <Bookmark className={`w-3.5 h-3.5 ${isFavorite ? 'fill-current' : ''}`} />
+          <Bookmark className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
         </button>
 
         {/* Bottom Banner Department / Faculty Name */}

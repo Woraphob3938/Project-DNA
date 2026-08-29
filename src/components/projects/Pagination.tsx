@@ -52,10 +52,37 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
   return (
     <nav
       aria-label="pagination"
-      className="pt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-3"
+      className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3"
     >
-      {/* Numbered page buttons */}
-      <div className="flex items-center flex-wrap gap-1.5">
+      {/* Mobile Compact Pagination (< sm) */}
+      <div className="flex sm:hidden items-center justify-between w-full bg-white border border-slate-200 rounded-xl p-2 shadow-2xs">
+        <button
+          onClick={() => goTo(currentPage - 1)}
+          disabled={currentPage === 1}
+          aria-label="หน้าก่อนหน้า"
+          className="flex items-center space-x-1 px-3 py-1.5 bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <ChevronLeft className="w-3.5 h-3.5" />
+          <span>ก่อนหน้า</span>
+        </button>
+
+        <span className="text-xs font-semibold text-slate-700">
+          หน้า <span className="text-amber-600 font-bold">{currentPage}</span> / {totalPages}
+        </span>
+
+        <button
+          onClick={() => goTo(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          aria-label="หน้าถัดไป"
+          className="flex items-center space-x-1 px-3 py-1.5 bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <span>ถัดไป</span>
+          <ChevronRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Desktop/Tablet Full Numbered Page Buttons (sm+) */}
+      <div className="hidden sm:flex items-center flex-wrap gap-1.5">
         <button
           onClick={() => goTo(currentPage - 1)}
           disabled={currentPage === 1}
@@ -100,10 +127,10 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
         </button>
       </div>
 
-      {/* Jump-to-page numeric input */}
+      {/* Jump-to-page numeric input (sm+) */}
       <form
         onSubmit={handleSubmitJump}
-        className="flex items-center space-x-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 shadow-2xs"
+        className="hidden sm:flex items-center space-x-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 shadow-2xs"
       >
         <label htmlFor="jump-page" className="text-xs font-medium text-slate-500 whitespace-nowrap">
           ไปหน้าที่

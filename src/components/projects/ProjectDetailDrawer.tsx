@@ -150,7 +150,7 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
       <div className="flex-1 overflow-y-auto">
 
         {/* Hero Banner: full-width cover with title overlay */}
-        <div className="relative h-64 sm:h-80 md:h-96 w-full bg-slate-900">
+        <div className="relative h-56 sm:h-72 md:h-96 w-full bg-slate-900">
           {project.cover_image_url ? (
             <Image
               src={project.cover_image_url}
@@ -165,23 +165,23 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
               <Layers className="w-16 h-16 opacity-30" />
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent pointer-events-none" />
 
           {/* Title block pinned to bottom of hero */}
-          <div className="absolute inset-x-0 bottom-0 p-5 sm:p-8 lg:p-10">
+          <div className="absolute inset-x-0 bottom-0 p-4 sm:p-8 lg:p-10">
             <div className="max-w-6xl mx-auto w-full">
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                <span className="px-2.5 py-1 bg-amber-500 text-slate-950 font-mono text-xs font-bold rounded-md">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+                <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-amber-500 text-slate-950 font-mono text-[11px] sm:text-xs font-bold rounded-md">
                   {project.department?.code || 'KU CSC'}
                 </span>
-                <span className="px-2 py-1 text-xs font-semibold text-white bg-white/10 backdrop-blur-sm border border-white/20 rounded-md">
+                <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-semibold text-white bg-white/10 backdrop-blur-sm border border-white/20 rounded-md">
                   ปีการศึกษา {project.academic_year}
                 </span>
                 <span className="hidden sm:inline px-2 py-1 text-xs font-medium text-slate-200 bg-black/40 backdrop-blur-sm border border-white/10 rounded-md">
                   {project.department?.faculty?.name_th}
                 </span>
                 {hasLineage ? (
-                  <span className="inline-flex items-center space-x-1 px-2 py-1 text-xs font-bold text-amber-300 bg-amber-500/15 backdrop-blur-sm border border-amber-400/40 rounded-md">
+                  <span className="inline-flex items-center space-x-1 px-2 py-0.5 sm:py-1 text-[11px] sm:text-xs font-bold text-amber-300 bg-amber-500/15 backdrop-blur-sm border border-amber-400/40 rounded-md">
                     <GitFork className="w-3 h-3" />
                     <span>มีสายวิวัฒนาการ • {lineageCount} โครงงาน</span>
                   </span>
@@ -192,10 +192,10 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
                   </span>
                 )}
               </div>
-              <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-tight">
+              <h1 className="font-display text-lg sm:text-2xl lg:text-3xl font-bold text-white leading-snug sm:leading-tight">
                 {project.title_th}
               </h1>
-              <p className="mt-2 text-sm sm:text-base text-slate-300 font-medium max-w-3xl">
+              <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-300 font-medium max-w-3xl line-clamp-2 sm:line-clamp-none">
                 {project.title_en}
               </p>
             </div>
@@ -384,13 +384,13 @@ export const ProjectDetailDrawer: React.FC<ProjectDetailDrawerProps> = ({
       </div>
 
       {/* Sticky Bottom Actions */}
-      <div className="p-4 bg-slate-900 border-t border-slate-800 space-y-2 shrink-0">
+      <div className="p-3 sm:p-4 bg-slate-900 border-t border-slate-800 space-y-2 shrink-0 pb-[max(env(safe-area-inset-bottom),0.75rem)]">
         <button
           onClick={() => onOpenInceptionStudio(project)}
-          className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 font-bold text-sm rounded-xl shadow-sm flex items-center justify-center space-x-2 transition-colors"
+          className="w-full py-2.5 px-3 sm:px-4 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 font-bold text-xs sm:text-sm rounded-xl shadow-sm flex items-center justify-center space-x-1.5 sm:space-x-2 transition-colors"
         >
           <GitFork className="w-4 h-4" />
-          <span>เริ่มต้นต่อยอดโครงงานนี้ (Inception Studio)</span>
+          <span>เริ่มต้นต่อยอดโครงงานนี้ <span className="hidden sm:inline">(Inception Studio)</span></span>
           <ArrowRight className="w-4 h-4 ml-1" />
         </button>
 

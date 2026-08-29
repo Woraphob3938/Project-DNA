@@ -238,8 +238,26 @@ export default function EditProjectPage() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5 items-start">
 
-            {/* ── Project List ── */}
-            <aside className="space-y-2 lg:sticky lg:top-24">
+            {/* ── Mobile Project Selector (< lg) ── */}
+            <div className="lg:hidden bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 block">
+                เลือกโครงงานที่ต้องการแก้ไข:
+              </label>
+              <select
+                value={selectedId || ''}
+                onChange={(e) => setSelectedId(e.target.value)}
+                className="w-full px-3 py-2 text-xs font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
+              >
+                {myProjects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    [{p.department?.code || 'KU CSC'} {p.academic_year}] {p.title_th}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* ── Desktop Project List (lg+) ── */}
+            <aside className="hidden lg:block space-y-2 lg:sticky lg:top-24">
               <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500 px-1">
                 โครงงานของฉัน ({myProjects.length})
               </h2>
@@ -267,7 +285,7 @@ export default function EditProjectPage() {
             </aside>
 
             {/* ── Edit Form ── */}
-            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 md:p-7 space-y-5">
+            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 md:p-7 space-y-5">
 
               {/* Basic Info */}
               <div className="space-y-4">

@@ -25,6 +25,68 @@ CREATE TABLE IF NOT EXISTS departments (
     name_en VARCHAR(255) NOT NULL
 );
 
+-- 2b. User Profiles (mirrors auth.users; owner of submitted projects)
+CREATE TABLE IF NOT EXISTS profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    student_id TEXT,
+    email TEXT,
+    full_name TEXT,
+    role TEXT NOT NULL DEFAULT 'student',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Auto-create a profile row for every new auth user. Students sign up with
+-- the synthetic address "<student id>@student.ku.ac.th"; everyone else is
+-- treated as faculty.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+declare
+  sid text;
+begin
+  -- Students sign up with the synthetic address "<student id>@student.ku.ac.th"
+  if new.email like '%@student.ku.ac.th' then
+    sid := split_part(new.email, '@', 1);
+  end if;
+
+  insert into public.profiles (id, email, student_id, full_name, role)
+  values (
+    new.id,
+    new.email,
+    sid,
+    coalesce(new.raw_user_meta_data ->> 'full_name', ''),
+    case when sid is not null then 'student' else 'faculty' end
+  )
+  on conflict (id) do nothing;
+
+  return new;
+end;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- True when the caller's profile has a staff role — used by the review
+-- policies below. SECURITY DEFINER lets it read profiles inside RLS checks.
+CREATE OR REPLACE FUNCTION public.is_faculty_user()
+RETURNS boolean
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  select exists (
+    select 1
+    from public.profiles p
+    where p.id = (select auth.uid())
+      and p.role in ('faculty', 'advisor', 'admin')
+  );
+$$;
+
 -- 3. Projects Table
 CREATE TABLE IF NOT EXISTS projects (
     id VARCHAR(50) PRIMARY KEY,
@@ -39,6 +101,12 @@ CREATE TABLE IF NOT EXISTS projects (
     rating_score NUMERIC(3, 2) DEFAULT 4.8,
     view_count INT DEFAULT 0,
     fork_count INT DEFAULT 0,
+    owner_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    approval_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    advisor_feedback TEXT,
+    reviewed_at TIMESTAMP WITH TIME ZONE,
+    reviewer_id UUID,
+    submitted_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -180,6 +248,7 @@ CREATE INDEX IF NOT EXISTS idx_gaps_project ON extension_gaps(project_id);
 -- Enable Row Level Security (RLS) on all tables
 ALTER TABLE faculties ENABLE ROW LEVEL SECURITY;
 ALTER TABLE departments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dna_cards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reusable_assets ENABLE ROW LEVEL SECURITY;
@@ -187,19 +256,51 @@ ALTER TABLE project_lineages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE extension_gaps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE challenges ENABLE ROW LEVEL SECURITY;
 
--- Read Policies: Open read for academic project exploration
+-- Read Policies: Open read for academic exploration, except pending-approval
+-- projects, which only their owner and faculty reviewers can see.
 CREATE POLICY "Allow public read faculties" ON faculties FOR SELECT TO anon, authenticated USING (true);
 CREATE POLICY "Allow public read departments" ON departments FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "Allow public read projects" ON projects FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Public can view projects" ON projects FOR SELECT TO anon, authenticated
+  USING ((status::text <> 'pending_approval'::text) OR (owner_id = (select auth.uid())) OR is_faculty_user());
 CREATE POLICY "Allow public read dna_cards" ON dna_cards FOR SELECT TO anon, authenticated USING (true);
 CREATE POLICY "Allow public read reusable_assets" ON reusable_assets FOR SELECT TO anon, authenticated USING (true);
 CREATE POLICY "Allow public read project_lineages" ON project_lineages FOR SELECT TO anon, authenticated USING (true);
 CREATE POLICY "Allow public read extension_gaps" ON extension_gaps FOR SELECT TO anon, authenticated USING (true);
 CREATE POLICY "Allow public read challenges" ON challenges FOR SELECT TO anon, authenticated USING (true);
 
--- Insert & Update Policies for Project Submissions
-CREATE POLICY "Allow insert projects" ON projects FOR INSERT TO anon, authenticated WITH CHECK (true);
-CREATE POLICY "Allow insert dna_cards" ON dna_cards FOR INSERT TO anon, authenticated WITH CHECK (true);
-CREATE POLICY "Allow insert reusable_assets" ON reusable_assets FOR INSERT TO anon, authenticated WITH CHECK (true);
-CREATE POLICY "Allow insert project_lineages" ON project_lineages FOR INSERT TO anon, authenticated WITH CHECK (true);
-CREATE POLICY "Allow insert extension_gaps" ON extension_gaps FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "Users can read own profile" ON profiles FOR SELECT
+  USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE
+  USING (auth.uid() = id);
+
+-- Write Policies: only signed-in members submit content (guest spam was the
+-- root cause of junk rows like "asdas" landing in the public library).
+CREATE POLICY "Authenticated can submit projects" ON projects FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated can insert dna_cards" ON dna_cards FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated can insert reusable_assets" ON reusable_assets FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated can insert project_lineages" ON project_lineages FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated can insert extension_gaps" ON extension_gaps FOR INSERT TO authenticated WITH CHECK (true);
+
+-- Review & Edit Policies: owners edit their own submissions, faculty approve.
+-- `USING (...) AND WITH CHECK (...)` + `.select()` in the client makes a
+-- silent RLS drop detectable (0 rows returned instead of a fake success).
+CREATE POLICY "Owners update own projects" ON projects FOR UPDATE TO authenticated
+  USING (owner_id = auth.uid()) WITH CHECK (owner_id = auth.uid());
+CREATE POLICY "Faculty can review projects" ON projects FOR UPDATE TO authenticated
+  USING (is_faculty_user()) WITH CHECK (is_faculty_user());
+CREATE POLICY "Owners delete own projects" ON projects FOR DELETE TO authenticated
+  USING (owner_id = auth.uid());
+
+-- Owner-scoped maintenance of child rows
+CREATE POLICY "Owners update reusable_assets of their projects" ON reusable_assets FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM projects p WHERE p.id = reusable_assets.project_id AND p.owner_id = auth.uid()))
+  WITH CHECK (EXISTS (SELECT 1 FROM projects p WHERE p.id = reusable_assets.project_id AND p.owner_id = auth.uid()));
+CREATE POLICY "Owners delete reusable_assets of their projects" ON reusable_assets FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM projects p WHERE p.id = reusable_assets.project_id AND p.owner_id = auth.uid()));
+CREATE POLICY "Owners update extension_gaps of their projects" ON extension_gaps FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM projects p WHERE p.id = extension_gaps.project_id AND p.owner_id = auth.uid()))
+  WITH CHECK (EXISTS (SELECT 1 FROM projects p WHERE p.id = extension_gaps.project_id AND p.owner_id = auth.uid()));
+CREATE POLICY "Owners delete extension_gaps of their projects" ON extension_gaps FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM projects p WHERE p.id = extension_gaps.project_id AND p.owner_id = auth.uid()));
+CREATE POLICY "Owners delete lineages involving their projects" ON project_lineages FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM projects p WHERE (p.id = project_lineages.parent_project_id OR p.id = project_lineages.child_project_id) AND p.owner_id = auth.uid()));
