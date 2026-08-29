@@ -187,15 +187,7 @@ function LoginForm() {
     <div className="min-h-screen bg-[#F4F5F7] text-slate-900 flex flex-col justify-between font-sans">
       
       {/* Top Simple Navigation */}
-      <header className="px-6 py-4 border-b border-slate-200/80 bg-white flex items-center justify-between">
-        <Link 
-          href="/"
-          className="flex items-center space-x-2 text-xs font-bold text-slate-700 hover:text-amber-800 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>กลับสู่หน้าหลักคลังโครงงาน</span>
-        </Link>
-
+      <header className="px-6 py-4 border-b border-slate-200/80 bg-white flex items-center justify-center">
         <div className="flex items-center space-x-2">
           <Logo className="w-8 h-8" />
           <span className="font-display font-bold text-sm text-slate-900">Project DNA</span>
